@@ -33,7 +33,6 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'scapy',
         'psutil',
     ],
     win_no_prefer_redirects=False,
