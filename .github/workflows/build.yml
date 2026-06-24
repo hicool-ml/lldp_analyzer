@@ -43,7 +43,7 @@ jobs:
       run: |
         pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pyinstaller>=6.0.0
+        pip install pyinstaller>=6.0.0 Pillow
 
     - name: Install system dependencies (Linux)
       if: matrix.platform == 'linux'
@@ -144,9 +144,12 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            artifacts/win/**/*
-            artifacts/linux/**/*
-            artifacts/macos/**/*
+            artifacts/win/LLDP_GUI/LLDP_GUI.exe
+            artifacts/win/LLDP_CLI/LLDP_CLI.exe
+            artifacts/linux/LLDP_GUI/LLDP_GUI
+            artifacts/linux/LLDP_CLI/LLDP_CLI
+            artifacts/macos/LLDP_GUI.app/**/*
+            artifacts/macos/LLDP_CLI/LLDP_CLI
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
