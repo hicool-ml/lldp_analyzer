@@ -27,9 +27,8 @@ Spotlight-V100
 .Trashes
 
 # --- Build artifacts ---
-LLDP_CLI.spec
-LLDP_GUI.spec
-*.spec
+*.pyc
+*.pyo
 
 # --- User config ---
 lldp.ini
