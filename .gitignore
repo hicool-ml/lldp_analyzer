@@ -1,0 +1,63 @@
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# --- Virtual environment ---
+venv/
+env/
+.venv/
+
+# --- IDE / Editor ---
+.trae/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- macOS ---
+.DS_Store
+*.DS_Store
+._*
+Spotlight-V100
+.Trashes
+
+# --- Build artifacts ---
+LLDP_CLI.spec
+LLDP_GUI.spec
+*.spec
+
+# --- User config ---
+lldp.ini
+
+# --- Captures ---
+captures/
+
+# --- Test samples (not for distribution) ---
+samples/
+
+# --- Codex agent context ---
+.codex/
+.agents/
+
+# --- IEEE specs (reference only, not source code) ---
+IEEE/
+*.db-shm
+*.db-wal
+
+# --- Database ---
+data/lldp_history.db
+
+# --- Backup files ---
+*.bak
+*~
+
+# --- Logs ---
+*.log
+
+# --- Vendor dispatcher (generated) ---
+vendor_dispatcher.py

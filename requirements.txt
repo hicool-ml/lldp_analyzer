@@ -1,0 +1,7 @@
+# LLDP/CDP Protocol Analyzer Dependencies
+# Core dependencies
+scapy>=2.5.0
+psutil>=5.9.0
+
+# Optional: for building executable
+# pyinstaller>=6.0.0
