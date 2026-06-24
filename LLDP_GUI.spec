@@ -16,6 +16,7 @@ a = Analysis(
         ('i18n/locales/', 'i18n/locales/'),
         ('lldp_icon.png', '.'),
         ('lldp_icon.ico', '.'),
+        ('lldp_icon.icns', '.'),
         ('lldp.png', '.'),
     ],
     hiddenimports=[
@@ -77,7 +78,7 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='LLDP_GUI.app',
-        icon='lldp_icon.png',
+        icon='lldp_icon.icns',
         bundle_identifier='com.lldp.analyzer',
         info_plist={
             'NSHighResolutionCapable': 'True',
