@@ -152,27 +152,67 @@ jobs:
         echo "=== Info.plist ==="
         cat dist/macos/LLDP_GUI.app/Contents/Info.plist
 
-    - name: Fix app bundle and codesign
+    - name: Fix app bundle structure
       run: |
         APP="dist/macos/LLDP_GUI.app"
-        EXEC="$APP/Contents/MacOS/LLDP_GUI"
+        echo "=== Checking app bundle structure ==="
         
-        if [ -f "$APP/Contents/MacOS/LLDP_GUI" ]; then
-          chmod +x "$APP/Contents/MacOS/LLDP_GUI"
+        if [ ! -d "$APP/Contents/MacOS" ]; then
+          echo "Creating Contents/MacOS directory..."
+          mkdir -p "$APP/Contents/MacOS"
         fi
         
-        if [ -f "$APP/Contents/MacOS/LLDP_CLI" ]; then
-          chmod +x "$APP/Contents/MacOS/LLDP_CLI"
+        if [ ! -f "$APP/Contents/MacOS/LLDP_GUI" ]; then
+          echo "LLDP_GUI not found in MacOS, searching..."
+          if [ -f "dist/macos/LLDP_GUI/LLDP_GUI" ]; then
+            echo "Found in dist/macos/LLDP_GUI/, copying..."
+            cp -R dist/macos/LLDP_GUI/* "$APP/Contents/MacOS/"
+          elif [ -f "$APP/Contents/LLDP_GUI" ]; then
+            echo "Found in Contents/, moving to MacOS..."
+            mv "$APP/Contents/LLDP_GUI" "$APP/Contents/MacOS/"
+            mv "$APP/Contents/"*.dylib "$APP/Contents/MacOS/" 2>/dev/null || true
+          fi
+        fi
+        
+        echo "=== Setting executable permissions ==="
+        if [ -f "$APP/Contents/MacOS/LLDP_GUI" ]; then
+          chmod +x "$APP/Contents/MacOS/LLDP_GUI"
+          ls -la "$APP/Contents/MacOS/LLDP_GUI"
+        else
+          echo "WARNING: LLDP_GUI executable not found!"
+          find "$APP" -name "LLDP_GUI" -type f
         fi
         
         if [ -f "dist/macos/LLDP_CLI/LLDP_CLI" ]; then
           chmod +x "dist/macos/LLDP_CLI/LLDP_CLI"
         fi
         
-        codesign --force --deep --sign - "$APP" || true
-        codesign --force --sign - "dist/macos/LLDP_CLI/LLDP_CLI" || true
+        echo "=== Verifying Info.plist ==="
+        plutil -p "$APP/Contents/Info.plist" 2>/dev/null || cat "$APP/Contents/Info.plist"
+        
+        echo "=== Checking executable architecture ==="
+        if [ -f "$APP/Contents/MacOS/LLDP_GUI" ]; then
+          file "$APP/Contents/MacOS/LLDP_GUI"
+          otool -L "$APP/Contents/MacOS/LLDP_GUI" | head -20
+        fi
+
+    - name: Codesign and notarization prep
+      run: |
+        APP="dist/macos/LLDP_GUI.app"
+        
+        echo "=== Code signing ==="
+        codesign --force --deep --sign - "$APP" 2>&1 || echo "codesign failed (non-fatal)"
+        codesign --verify --deep --verbose=2 "$APP" 2>&1 || echo "codesign verify failed (non-fatal)"
+        
+        echo "=== Removing quarantine attributes ==="
         xattr -cr "$APP" || true
         xattr -cr "dist/macos/LLDP_CLI" || true
+        
+        echo "=== Final app bundle check ==="
+        find "$APP" -maxdepth 3 -type f | sort
+        echo ""
+        echo "MacOS directory contents:"
+        ls -la "$APP/Contents/MacOS/" 2>/dev/null || echo "MacOS dir not found"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
