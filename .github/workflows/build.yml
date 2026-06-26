@@ -16,26 +16,8 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            platform: win
-          - os: ubuntu-latest
-            platform: linux
-          - os: macos-latest
-            platform: macos
-            target_arch: x86_64
-          - os: macos-latest
-            platform: macos
-            target_arch: arm64
-          - os: macos-latest
-            platform: macos
-            target_arch: universal2
-
+  build-win:
+    runs-on: windows-latest
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -52,61 +34,195 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller>=6.0.0 Pillow
 
-    - name: Install system dependencies (Linux)
-      if: matrix.platform == 'linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y tcpdump libpcap-dev
-
-    - name: Install system dependencies (macOS)
-      if: matrix.platform == 'macos'
-      run: |
-        brew install libpcap || true
-
     - name: Build GUI
+      shell: bash
       run: |
-        if [ "${{ matrix.platform }}" = "macos" ]; then
-          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.target_arch }} --target-arch ${{ matrix.target_arch }}
-        else
-          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}
-        fi
+        pyinstaller LLDP_GUI.spec --distpath dist/win
 
     - name: Build CLI
+      shell: bash
       run: |
-        if [ "${{ matrix.platform }}" = "macos" ]; then
-          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.target_arch }} --target-arch ${{ matrix.target_arch }}
-        else
-          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
-        fi
-
-    - name: Codesign and remove quarantine (macOS)
-      if: matrix.platform == 'macos'
-      run: |
-        codesign --force --deep --sign - dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_GUI.app
-        codesign --force --sign - dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_CLI/LLDP_CLI
-        xattr -cr dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_GUI.app
-        xattr -cr dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_CLI
-
-    - name: List dist directory (Windows)
-      if: matrix.platform == 'win'
-      shell: powershell
-      run: |
-        Get-ChildItem -Recurse dist
-
-    - name: List dist directory (Unix)
-      if: matrix.platform != 'win'
-      run: |
-        find dist -type f
+        pyinstaller LLDP_CLI.spec --distpath dist/win
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: lldp-${{ matrix.platform }}${{ '-'+matrix.target_arch if matrix.platform == 'macos' else '' }}
-        path: dist/${{ matrix.platform }}${{ '_'+matrix.target_arch if matrix.platform == 'macos' else '' }}/
+        name: lldp-win
+        path: dist/win/
+        retention-days: 7
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tcpdump libpcap-dev
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Build GUI
+      run: |
+        pyinstaller LLDP_GUI.spec --distpath dist/linux
+
+    - name: Build CLI
+      run: |
+        pyinstaller LLDP_CLI.spec --distpath dist/linux
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lldp-linux
+        path: dist/linux/
+        retention-days: 7
+
+  build-macos-x86_64:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        brew install libpcap || true
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Build GUI x86_64
+      run: |
+        PYINSTALLER_TARGET_ARCH=x86_64 pyinstaller LLDP_GUI.spec --distpath dist/macos-x86_64
+
+    - name: Build CLI x86_64
+      run: |
+        PYINSTALLER_TARGET_ARCH=x86_64 pyinstaller LLDP_CLI.spec --distpath dist/macos-x86_64
+
+    - name: Codesign and remove quarantine
+      run: |
+        codesign --force --deep --sign - dist/macos-x86_64/LLDP_GUI.app
+        codesign --force --sign - dist/macos-x86_64/LLDP_CLI/LLDP_CLI
+        xattr -cr dist/macos-x86_64/LLDP_GUI.app
+        xattr -cr dist/macos-x86_64/LLDP_CLI
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lldp-macos-x86_64
+        path: dist/macos-x86_64/
+        retention-days: 7
+
+  build-macos-arm64:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        brew install libpcap || true
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Build GUI arm64
+      run: |
+        PYINSTALLER_TARGET_ARCH=arm64 pyinstaller LLDP_GUI.spec --distpath dist/macos-arm64
+
+    - name: Build CLI arm64
+      run: |
+        PYINSTALLER_TARGET_ARCH=arm64 pyinstaller LLDP_CLI.spec --distpath dist/macos-arm64
+
+    - name: Codesign and remove quarantine
+      run: |
+        codesign --force --deep --sign - dist/macos-arm64/LLDP_GUI.app
+        codesign --force --sign - dist/macos-arm64/LLDP_CLI/LLDP_CLI
+        xattr -cr dist/macos-arm64/LLDP_GUI.app
+        xattr -cr dist/macos-arm64/LLDP_CLI
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lldp-macos-arm64
+        path: dist/macos-arm64/
+        retention-days: 7
+
+  build-macos-universal2:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+        cache: 'pip'
+
+    - name: Install system dependencies
+      run: |
+        brew install libpcap || true
+
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Build GUI universal2
+      run: |
+        PYINSTALLER_TARGET_ARCH=universal2 pyinstaller LLDP_GUI.spec --distpath dist/macos-universal2
+
+    - name: Build CLI universal2
+      run: |
+        PYINSTALLER_TARGET_ARCH=universal2 pyinstaller LLDP_CLI.spec --distpath dist/macos-universal2
+
+    - name: Codesign and remove quarantine
+      run: |
+        codesign --force --deep --sign - dist/macos-universal2/LLDP_GUI.app
+        codesign --force --sign - dist/macos-universal2/LLDP_CLI/LLDP_CLI
+        xattr -cr dist/macos-universal2/LLDP_GUI.app
+        xattr -cr dist/macos-universal2/LLDP_CLI
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lldp-macos-universal2
+        path: dist/macos-universal2/
         retention-days: 7
 
   release:
-    needs: [build]
+    needs: [build-win, build-linux, build-macos-x86_64, build-macos-arm64, build-macos-universal2]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     steps:
