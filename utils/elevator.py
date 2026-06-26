@@ -176,7 +176,10 @@ def _elevate_darwin(
     wait: bool,
     timeout_ms: int | None,
 ) -> Optional[int]:
-    """Elevate on macOS using sudo -E in the current terminal.
+    """Elevate on macOS.
+
+    When running in a terminal (TTY available), uses sudo -E.
+    When running as GUI app (no TTY), uses osascript to show macOS auth dialog.
 
     Unlike osascript+administrator-privileges, sudo -E does NOT inherit
     macOS 14+ Hardened Runtime / TCC provenance restrictions, so the
@@ -189,25 +192,48 @@ def _elevate_darwin(
     *after* sudo resets the environment.
     """
     import subprocess
-    full_cmd = [exe] + args
+    import shlex
 
-    # Explicitly preserve PYTHONPATH via env(1) because sudo -E strips it.
+    full_cmd = [exe] + args
+    cmd_str = " ".join(shlex.quote(arg) for arg in full_cmd)
+
     ppath = os.environ.get("PYTHONPATH", "")
     if ppath:
-        sudo_cmd = ["sudo", "env", f"PYTHONPATH={ppath}"] + full_cmd
-    else:
-        sudo_cmd = ["sudo", "-E"] + full_cmd
+        cmd_str = f"PYTHONPATH={shlex.quote(ppath)} {cmd_str}"
 
-    if wait:
-        timeout_s = timeout_ms / 1000 if timeout_ms is not None else None
-        try:
-            result = subprocess.run(sudo_cmd, timeout=timeout_s)
-            return result.returncode
-        except subprocess.TimeoutExpired:
-            return 1
+    if sys.stdout.isatty():
+        if ppath:
+            sudo_cmd = ["sudo", "env", f"PYTHONPATH={ppath}"] + full_cmd
+        else:
+            sudo_cmd = ["sudo", "-E"] + full_cmd
+
+        if wait:
+            timeout_s = timeout_ms / 1000 if timeout_ms is not None else None
+            try:
+                result = subprocess.run(sudo_cmd, timeout=timeout_s)
+                return result.returncode
+            except subprocess.TimeoutExpired:
+                return 1
+        else:
+            subprocess.Popen(sudo_cmd)
+            return None
     else:
-        subprocess.Popen(sudo_cmd)
-        return None
+        osascript_cmd = [
+            "osascript",
+            "-e",
+            f'do shell script "{cmd_str}" with administrator privileges',
+        ]
+
+        if wait:
+            timeout_s = timeout_ms / 1000 if timeout_ms is not None else None
+            try:
+                result = subprocess.run(osascript_cmd, timeout=timeout_s)
+                return result.returncode
+            except subprocess.TimeoutExpired:
+                return 1
+        else:
+            subprocess.Popen(osascript_cmd)
+            return None
 
 
 # ---------------------------------------------------------------------------
