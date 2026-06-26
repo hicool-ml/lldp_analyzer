@@ -22,14 +22,38 @@ class MacOSNetworkBackend(NetworkAdapterBackend):
 
     def __init__(self):
         self.last_error = ""
-        # Calculate path to lldp_helper.py
-        backend_dir = os.path.dirname(os.path.abspath(__file__))
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(backend_dir)))
-        self._helper_path = os.path.join(root_dir, "lldp_helper.py")
+        is_frozen = getattr(sys, 'frozen', False)
+        if is_frozen:
+            meipass = getattr(sys, '_MEIPASS', '')
+            self._helper_path = os.path.join(meipass, "lldp_helper.py")
+        else:
+            backend_dir = os.path.dirname(os.path.abspath(__file__))
+            root_dir = os.path.dirname(os.path.dirname(os.path.dirname(backend_dir)))
+            self._helper_path = os.path.join(root_dir, "lldp_helper.py")
+
+    def _find_system_python(self) -> str:
+        """Find system Python for running helper script."""
+        candidates = [
+            "/opt/homebrew/bin/python3.11",
+            "/opt/homebrew/opt/python@3.11/bin/python3.11",
+            "/opt/homebrew/bin/python3",
+            "/usr/local/bin/python3",
+            "/usr/bin/python3",
+        ]
+        for p in candidates:
+            if os.path.isfile(p):
+                return p
+        return sys.executable
 
     def _run_helper(self, command: str, *args) -> dict:
         """Run lldp_helper with the specified command."""
-        cmd_args = [sys.executable, self._helper_path, command] + list(args)
+        is_frozen = getattr(sys, 'frozen', False)
+        if is_frozen:
+            python_exe = self._find_system_python()
+        else:
+            python_exe = sys.executable
+
+        cmd_args = [python_exe, self._helper_path, command] + list(args)
 
         try:
             result = subprocess.run(

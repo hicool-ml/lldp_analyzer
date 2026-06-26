@@ -160,6 +160,36 @@ def _check_packet_capture_support() -> tuple[bool, str]:
 
 
 def main():
+    if "--json-out" in sys.argv:
+        idx = sys.argv.index("--json-out")
+        if idx + 1 < len(sys.argv):
+            sys.exit(_run_cli_capture(sys.argv[idx + 1]))
+
+    if "--elevated-op" in sys.argv:
+        idx = sys.argv.index("--elevated-op")
+        op_args = sys.argv[idx + 1:]
+        if op_args:
+            sys.exit(_run_elevated_network_op(op_args))
+        sys.exit(1)
+
+    # --- Single-instance guard ---
+    import fcntl
+    lock_file = None
+    try:
+        from utils.platform_utils import get_user_data_dir
+        lock_path = os.path.join(get_user_data_dir(), ".lldp_gui.lock")
+        lock_file = open(lock_path, "w")
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except (IOError, ImportError):
+        pass
+    except fcntl.Error:
+        try:
+            from tkinter import messagebox as _mb
+            _mb.showwarning("LLDP Analyzer", "LLDP Analyzer is already running.")
+        except Exception:
+            pass
+        sys.exit(0)
+
     # --- macOS startup elevation ---
     # CRITICAL: Use the SYSTEM Python (not the venv Python) to avoid macOS 14+
     # TCC kernel-level enforcement that blocks pyvenv.cfg reads even with sudo.
@@ -195,20 +225,6 @@ def main():
         except Exception:
             pass
         sys.exit(0)
-
-
-    if "--json-out" in sys.argv:
-        idx = sys.argv.index("--json-out")
-        if idx + 1 < len(sys.argv):
-            sys.exit(_run_cli_capture(sys.argv[idx + 1]))
-
-    # --- Headless network operation mode (used for elevated ops) ---
-    if "--elevated-op" in sys.argv:
-        idx = sys.argv.index("--elevated-op")
-        op_args = sys.argv[idx + 1:]
-        if op_args:
-            sys.exit(_run_elevated_network_op(op_args))
-        sys.exit(1)
 
     # --- Check packet capture support ---
     supported, message = _check_packet_capture_support()

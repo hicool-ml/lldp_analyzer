@@ -19,16 +19,36 @@ logger = logging.getLogger(__name__)
 def get_helper_path() -> str:
     """Get path to lldp_helper.py."""
     import os
-    # Try to find lldp_helper.py relative to this file
+    is_frozen = getattr(sys, 'frozen', False)
+    if is_frozen:
+        meipass = getattr(sys, '_MEIPASS', '')
+        helper_path = os.path.join(meipass, "lldp_helper.py")
+        if os.path.isfile(helper_path):
+            return helper_path
     utils_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(utils_dir)
     helper_path = os.path.join(root_dir, "lldp_helper.py")
     if os.path.isfile(helper_path):
         return helper_path
-    # Fallback: look in current directory
     if os.path.isfile("lldp_helper.py"):
         return "lldp_helper.py"
     raise FileNotFoundError("lldp_helper.py not found")
+
+
+def _find_system_python() -> str:
+    """Find system Python for running helper script."""
+    import os
+    candidates = [
+        "/opt/homebrew/bin/python3.11",
+        "/opt/homebrew/opt/python@3.11/bin/python3.11",
+        "/opt/homebrew/bin/python3",
+        "/usr/local/bin/python3",
+        "/usr/bin/python3",
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return sys.executable
 
 
 def restart_interface_send_lldp(iface_name: str) -> tuple:
@@ -43,7 +63,9 @@ def restart_interface_send_lldp(iface_name: str) -> tuple:
     """
     try:
         helper = get_helper_path()
-        cmd = [sys.executable, helper, "restart", iface_name]
+        is_frozen = getattr(sys, 'frozen', False)
+        python_exe = _find_system_python() if is_frozen else sys.executable
+        cmd = [python_exe, helper, "restart", iface_name]
 
         result = subprocess.run(
             cmd,
