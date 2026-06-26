@@ -104,61 +104,24 @@ jobs:
   release:
     needs: [build]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/tags/v*'
     steps:
-      - name: Download Windows x64 artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: lldp-win-x64
-          path: artifacts/win-x64
-
-      - name: Download Linux x64 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: lldp-linux-x64
-          path: artifacts/linux-x64
-
-      - name: Download macOS ARM64 artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: lldp-macos-arm64
-          path: artifacts/macos-arm64
+          pattern: lldp-*
+          path: artifacts/
 
       - name: Display structure of downloaded files
-        run: ls -R artifacts
+        run: find artifacts -type f
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: LLDP Analyzer v1.0.0
-          body: |
-            ## Release Notes
-
-            - Cross-platform support (Windows/macOS/Linux)
-            - Fixed LLDP packet capture timeout issue
-            - Fixed macOS build errors with platform-specific backends
-            - Added GitHub Actions automated building
-
-            ### Downloads
-
-            **Windows**
-            - `LLDP_GUI_win_x64.exe` - GUI version for Windows x64
-            - `LLDP_CLI_win_x64.exe` - CLI version for Windows x64
-
-            **Linux**
-            - `LLDP_GUI_linux_x64` - GUI version for Linux x64
-            - `LLDP_CLI_linux_x64` - CLI version for Linux x64
-
-            **macOS**
-            - `LLDP_GUI_macos_arm64.app` - GUI version for macOS Apple Silicon
-            - `LLDP_CLI_macos_arm64` - CLI version for macOS Apple Silicon
-          draft: false
-          prerelease: false
+          generate_release_notes: true
+          make_latest: true
           files: |
-            artifacts/win-x64/**/*
-            artifacts/linux-x64/**/*
-            artifacts/macos-arm64/**/*
+            artifacts/**/*
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
