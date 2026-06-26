@@ -57,6 +57,3 @@ data/lldp_history.db
 
 # --- Logs ---
 *.log
-
-# --- Vendor dispatcher (generated) ---
-vendor_dispatcher.py
