@@ -28,6 +28,12 @@ jobs:
             platform: linux
           - os: macos-latest
             platform: macos
+            target_arch: x86_64
+          - os: macos-latest
+            platform: macos
+            target_arch: arm64
+          - os: macos-latest
+            platform: macos
             target_arch: universal2
 
     steps:
@@ -60,7 +66,7 @@ jobs:
     - name: Build GUI
       run: |
         if [ "${{ matrix.platform }}" = "macos" ]; then
-          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }} --target-arch ${{ matrix.target_arch }}
+          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.target_arch }} --target-arch ${{ matrix.target_arch }}
         else
           pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}
         fi
@@ -68,7 +74,7 @@ jobs:
     - name: Build CLI
       run: |
         if [ "${{ matrix.platform }}" = "macos" ]; then
-          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }} --target-arch ${{ matrix.target_arch }}
+          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.target_arch }} --target-arch ${{ matrix.target_arch }}
         else
           pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
         fi
@@ -76,10 +82,10 @@ jobs:
     - name: Codesign and remove quarantine (macOS)
       if: matrix.platform == 'macos'
       run: |
-        codesign --force --deep --sign - dist/${{ matrix.platform }}/LLDP_GUI.app
-        codesign --force --sign - dist/${{ matrix.platform }}/LLDP_CLI/LLDP_CLI
-        xattr -cr dist/${{ matrix.platform }}/LLDP_GUI.app
-        xattr -cr dist/${{ matrix.platform }}/LLDP_CLI
+        codesign --force --deep --sign - dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_GUI.app
+        codesign --force --sign - dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_CLI/LLDP_CLI
+        xattr -cr dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_GUI.app
+        xattr -cr dist/${{ matrix.platform }}_${{ matrix.target_arch }}/LLDP_CLI
 
     - name: List dist directory (Windows)
       if: matrix.platform == 'win'
@@ -95,8 +101,8 @@ jobs:
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: lldp-${{ matrix.platform }}
-        path: dist/${{ matrix.platform }}/
+        name: lldp-${{ matrix.platform }}${{ '-'+matrix.target_arch if matrix.platform == 'macos' else '' }}
+        path: dist/${{ matrix.platform }}${{ '_'+matrix.target_arch if matrix.platform == 'macos' else '' }}/
         retention-days: 7
 
   release:
@@ -116,11 +122,23 @@ jobs:
           name: lldp-linux
           path: artifacts/linux
 
-      - name: Download macOS artifacts
+      - name: Download macOS x86_64 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: lldp-macos
-          path: artifacts/macos
+          name: lldp-macos-x86_64
+          path: artifacts/macos-x86_64
+
+      - name: Download macOS arm64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lldp-macos-arm64
+          path: artifacts/macos-arm64
+
+      - name: Download macOS universal2 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lldp-macos-universal2
+          path: artifacts/macos-universal2
 
       - name: Display structure of downloaded files
         run: ls -R artifacts
@@ -145,15 +163,35 @@ jobs:
           cd artifacts/linux
           zip -r LLDP_CLI_Linux.zip LLDP_CLI
 
-      - name: Zip macOS GUI
+      - name: Zip macOS x86_64 GUI
         run: |
-          cd artifacts/macos
-          zip -r LLDP_GUI_macOS.zip LLDP_GUI.app
+          cd artifacts/macos-x86_64
+          zip -r LLDP_GUI_macOS_x86_64.zip LLDP_GUI.app
 
-      - name: Zip macOS CLI
+      - name: Zip macOS x86_64 CLI
         run: |
-          cd artifacts/macos
-          zip -r LLDP_CLI_macOS.zip LLDP_CLI
+          cd artifacts/macos-x86_64
+          zip -r LLDP_CLI_macOS_x86_64.zip LLDP_CLI
+
+      - name: Zip macOS arm64 GUI
+        run: |
+          cd artifacts/macos-arm64
+          zip -r LLDP_GUI_macOS_arm64.zip LLDP_GUI.app
+
+      - name: Zip macOS arm64 CLI
+        run: |
+          cd artifacts/macos-arm64
+          zip -r LLDP_CLI_macOS_arm64.zip LLDP_CLI
+
+      - name: Zip macOS universal2 GUI
+        run: |
+          cd artifacts/macos-universal2
+          zip -r LLDP_GUI_macOS_universal2.zip LLDP_GUI.app
+
+      - name: Zip macOS universal2 CLI
+        run: |
+          cd artifacts/macos-universal2
+          zip -r LLDP_CLI_macOS_universal2.zip LLDP_CLI
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -186,8 +224,12 @@ jobs:
             - LLDP_CLI_Linux.zip - CLI version for Linux
 
             **macOS**
-            - LLDP_GUI_macOS.zip - GUI version for macOS
-            - LLDP_CLI_macOS.zip - CLI version for macOS
+            - LLDP_GUI_macOS_x86_64.zip - GUI version for Intel Mac
+            - LLDP_CLI_macOS_x86_64.zip - CLI version for Intel Mac
+            - LLDP_GUI_macOS_arm64.zip - GUI version for Apple Silicon
+            - LLDP_CLI_macOS_arm64.zip - CLI version for Apple Silicon
+            - LLDP_GUI_macOS_universal2.zip - GUI version for both architectures
+            - LLDP_CLI_macOS_universal2.zip - CLI version for both architectures
           draft: false
           prerelease: false
           files: |
@@ -195,8 +237,12 @@ jobs:
             artifacts/win/LLDP_CLI_Windows.zip
             artifacts/linux/LLDP_GUI_Linux.zip
             artifacts/linux/LLDP_CLI_Linux.zip
-            artifacts/macos/LLDP_GUI_macOS.zip
-            artifacts/macos/LLDP_CLI_macOS.zip
+            artifacts/macos-x86_64/LLDP_GUI_macOS_x86_64.zip
+            artifacts/macos-x86_64/LLDP_CLI_macOS_x86_64.zip
+            artifacts/macos-arm64/LLDP_GUI_macOS_arm64.zip
+            artifacts/macos-arm64/LLDP_CLI_macOS_arm64.zip
+            artifacts/macos-universal2/LLDP_GUI_macOS_universal2.zip
+            artifacts/macos-universal2/LLDP_CLI_macOS_universal2.zip
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
