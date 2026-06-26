@@ -135,7 +135,7 @@ jobs:
       run: |
         pyinstaller LLDP_CLI.spec --distpath dist/macos
 
-    - name: Debug: Show app bundle structure
+    - name: "Debug: Show app bundle structure"
       run: |
         echo "=== App bundle structure ==="
         find dist/macos/LLDP_GUI.app -type f | head -50
