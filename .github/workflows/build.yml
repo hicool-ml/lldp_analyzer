@@ -80,6 +80,21 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller>=6.0.0 Pillow
 
+    - name: Generate icns icon (macOS)
+      run: |
+        mkdir -p tmp.iconset
+        sips -z 16 16 lldp_icon.png --out tmp.iconset/icon_16x16.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_16x16@2x.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_32x32.png
+        sips -z 64 64 lldp_icon.png --out tmp.iconset/icon_32x32@2x.png
+        sips -z 128 128 lldp_icon.png --out tmp.iconset/icon_128x128.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_128x128@2x.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_256x256.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_256x256@2x.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_512x512.png
+        iconutil -c icns tmp.iconset -o lldp_icon.icns
+        rm -rf tmp.iconset
+
     - name: Build GUI
       run: |
         pyinstaller LLDP_GUI.spec --distpath dist/linux
@@ -120,6 +135,21 @@ jobs:
         pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Generate icns icon (macOS)
+      run: |
+        mkdir -p tmp.iconset
+        sips -z 16 16 lldp_icon.png --out tmp.iconset/icon_16x16.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_16x16@2x.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_32x32.png
+        sips -z 64 64 lldp_icon.png --out tmp.iconset/icon_32x32@2x.png
+        sips -z 128 128 lldp_icon.png --out tmp.iconset/icon_128x128.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_128x128@2x.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_256x256.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_256x256@2x.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_512x512.png
+        iconutil -c icns tmp.iconset -o lldp_icon.icns
+        rm -rf tmp.iconset
 
     - name: Build GUI
       run: |
@@ -168,6 +198,21 @@ jobs:
         pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller>=6.0.0 Pillow
+
+    - name: Generate icns icon (macOS)
+      run: |
+        mkdir -p tmp.iconset
+        sips -z 16 16 lldp_icon.png --out tmp.iconset/icon_16x16.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_16x16@2x.png
+        sips -z 32 32 lldp_icon.png --out tmp.iconset/icon_32x32.png
+        sips -z 64 64 lldp_icon.png --out tmp.iconset/icon_32x32@2x.png
+        sips -z 128 128 lldp_icon.png --out tmp.iconset/icon_128x128.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_128x128@2x.png
+        sips -z 256 256 lldp_icon.png --out tmp.iconset/icon_256x256.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_256x256@2x.png
+        sips -z 512 512 lldp_icon.png --out tmp.iconset/icon_512x512.png
+        iconutil -c icns tmp.iconset -o lldp_icon.icns
+        rm -rf tmp.iconset
 
     - name: Build GUI
       run: |
