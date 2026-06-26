@@ -64,6 +64,14 @@ jobs:
       run: |
         pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
 
+    - name: Codesign and remove quarantine (macOS)
+      if: matrix.platform == 'macos'
+      run: |
+        codesign --force --deep --sign - dist/${{ matrix.platform }}/LLDP_GUI.app
+        codesign --force --sign - dist/${{ matrix.platform }}/LLDP_CLI/LLDP_CLI
+        xattr -cr dist/${{ matrix.platform }}/LLDP_GUI.app
+        xattr -cr dist/${{ matrix.platform }}/LLDP_CLI
+
     - name: List dist directory (Windows)
       if: matrix.platform == 'win'
       shell: powershell

@@ -82,5 +82,10 @@ if sys.platform == 'darwin':
         info_plist={
             'NSHighResolutionCapable': 'True',
             'LSRequiresCarbon': 'True',
+            'NSAppTransportSecurity': {
+                'NSAllowsArbitraryLoads': True,
+            },
         },
+        codesign_identity=None,
+        entitlements_file='entitlements.plist',
     )
