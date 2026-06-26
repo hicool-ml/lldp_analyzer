@@ -165,33 +165,51 @@ def main():
     # TCC kernel-level enforcement that blocks pyvenv.cfg reads even with sudo.
     # + Set PYTHONPATH so the system Python can find the project + venv packages.
     if sys.platform == 'darwin' and not _is_admin() and '--skip-elevate' not in sys.argv:
-        project_root = os.path.dirname(os.path.abspath(__file__))
-        system_python = _find_system_python()
+        if getattr(sys, 'frozen', False):
+            import subprocess
+            try:
+                dark_check = subprocess.run(
+                    ["defaults", "read", "-g", "AppleInterfaceStyle"],
+                    capture_output=True, text=True, timeout=2,
+                )
+                dark_mode_flag = "1" if (dark_check.returncode == 0 and dark_check.stdout.strip().lower() == "dark") else "0"
+            except Exception:
+                dark_mode_flag = "0"
+            cmd = [sys.executable] + sys.argv[1:] + ['--skip-elevate']
+            env_cmd = ['sudo', '-E', f'DARK_MODE={dark_mode_flag}'] + cmd
+            try:
+                subprocess.run(env_cmd)
+            except Exception:
+                pass
+            sys.exit(0)
+        else:
+            project_root = os.path.dirname(os.path.abspath(__file__))
+            system_python = _find_system_python()
 
-        pythonpath_parts = [project_root]
-        venv_site = os.path.join(project_root, 'venv', 'lib', 'python3.11', 'site-packages')
-        if os.path.isdir(venv_site):
-            pythonpath_parts.append(venv_site)
-        ppath = ":".join(pythonpath_parts)
+            pythonpath_parts = [project_root]
+            venv_site = os.path.join(project_root, 'venv', 'lib', 'python3.11', 'site-packages')
+            if os.path.isdir(venv_site):
+                pythonpath_parts.append(venv_site)
+            ppath = ":".join(pythonpath_parts)
 
-        import subprocess
-        # Detect dark mode in the CURRENT (user) context before sudo clears HOME
-        try:
-            dark_check = subprocess.run(
-                ["defaults", "read", "-g", "AppleInterfaceStyle"],
-                capture_output=True, text=True, timeout=2,
-            )
-            dark_mode_flag = "1" if (dark_check.returncode == 0 and dark_check.stdout.strip().lower() == "dark") else "0"
-        except Exception:
-            dark_mode_flag = "0"
+            import subprocess
+            # Detect dark mode in the CURRENT (user) context before sudo clears HOME
+            try:
+                dark_check = subprocess.run(
+                    ["defaults", "read", "-g", "AppleInterfaceStyle"],
+                    capture_output=True, text=True, timeout=2,
+                )
+                dark_mode_flag = "1" if (dark_check.returncode == 0 and dark_check.stdout.strip().lower() == "dark") else "0"
+            except Exception:
+                dark_mode_flag = "0"
 
-        cmd = [system_python] + sys.argv + ['--skip-elevate']
-        env_cmd = ['sudo', 'env', f'PYTHONPATH={ppath}', f'DARK_MODE={dark_mode_flag}'] + cmd
-        try:
-            subprocess.run(env_cmd)
-        except Exception:
-            pass
-        sys.exit(0)
+            cmd = [system_python] + sys.argv + ['--skip-elevate']
+            env_cmd = ['sudo', 'env', f'PYTHONPATH={ppath}', f'DARK_MODE={dark_mode_flag}'] + cmd
+            try:
+                subprocess.run(env_cmd)
+            except Exception:
+                pass
+            sys.exit(0)
 
 
     if "--json-out" in sys.argv:
