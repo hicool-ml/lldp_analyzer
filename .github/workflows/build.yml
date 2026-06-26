@@ -28,6 +28,7 @@ jobs:
             platform: linux
           - os: macos-latest
             platform: macos
+            target_arch: universal2
 
     steps:
     - name: Checkout repository
@@ -58,11 +59,19 @@ jobs:
 
     - name: Build GUI
       run: |
-        pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}
+        if [ "${{ matrix.platform }}" = "macos" ]; then
+          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }} --target-arch ${{ matrix.target_arch }}
+        else
+          pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}
+        fi
 
     - name: Build CLI
       run: |
-        pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
+        if [ "${{ matrix.platform }}" = "macos" ]; then
+          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }} --target-arch ${{ matrix.target_arch }}
+        else
+          pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
+        fi
 
     - name: Codesign and remove quarantine (macOS)
       if: matrix.platform == 'macos'
