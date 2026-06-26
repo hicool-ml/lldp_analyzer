@@ -16,8 +16,16 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def _get_default_db_path() -> str:
+    """Get the default database path in user data directory."""
+    from utils.platform_utils import get_user_data_dir
+    return os.path.join(get_user_data_dir(), "lldp_history.db")
+
+
 class LLDPHistoryDatabase:
-    def __init__(self, db_path: str = "data/lldp_history.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            db_path = _get_default_db_path()
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()

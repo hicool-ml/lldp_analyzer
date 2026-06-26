@@ -426,12 +426,12 @@ def print_debug_packet(raw: bytes, protocol: str, src_mac: str, ts: str = "") ->
 
 def save_capture_file(raw: bytes, protocol: str, src_mac: str, ts: str = "") -> None:
     """Save full Ethernet frame hex to a file for offline parsing."""
+    from utils.platform_utils import get_user_data_dir
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     if ts:
-        # ts is like "09:05:38"; use it as the primary timestamp in the filename
         timestamp = ts.replace(":", "")
-    captures_dir = Path("captures")
-    captures_dir.mkdir(exist_ok=True)
+    captures_dir = Path(get_user_data_dir()) / "captures"
+    captures_dir.mkdir(parents=True, exist_ok=True)
     safe_mac = src_mac.replace(":", "-")
     filename = captures_dir / f"{protocol}_{safe_mac}_{timestamp}.txt"
     hex_data = raw.hex()

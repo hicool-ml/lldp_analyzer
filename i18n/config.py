@@ -18,9 +18,8 @@ class LanguageConfig:
     
     def _get_config_path(self) -> str:
         """Get the path to the INI config file."""
-        if getattr(sys, 'frozen', False):
-            return os.path.join(os.path.dirname(sys.executable), "lldp.ini")
-        return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lldp.ini")
+        from utils.platform_utils import get_user_data_dir
+        return os.path.join(get_user_data_dir(), "lldp.ini")
     
     def _load_config(self) -> None:
         """Load configuration from INI file."""

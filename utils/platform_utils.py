@@ -41,6 +41,28 @@ def get_platform_name() -> str:
         return f"Unknown ({sys.platform})"
 
 
+def get_user_data_dir() -> str:
+    """Get the platform-specific user data directory for the application.
+    
+    Creates the directory if it doesn't exist.
+    
+    Returns:
+        Path to the user data directory.
+    """
+    if is_windows():
+        base = os.environ.get("APPDATA", os.path.expanduser("~"))
+        data_dir = os.path.join(base, "LLDP Analyzer")
+    elif is_macos():
+        base = os.path.expanduser("~/Library/Application Support")
+        data_dir = os.path.join(base, "LLDP Analyzer")
+    else:
+        base = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        data_dir = os.path.join(base, "lldp-analyzer")
+    
+    os.makedirs(data_dir, exist_ok=True)
+    return data_dir
+
+
 # =========================================================================
 # Packet Capture Support Detection
 # =========================================================================
