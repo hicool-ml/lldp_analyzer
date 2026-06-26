@@ -80,12 +80,17 @@ if sys.platform == 'darwin':
         icon='lldp_icon.icns',
         bundle_identifier='com.lldp.analyzer',
         info_plist={
-            'NSHighResolutionCapable': 'True',
-            'LSRequiresCarbon': 'True',
+            'NSHighResolutionCapable': True,
+            'CFBundleDisplayName': 'LLDP Analyzer',
+            'CFBundleName': 'LLDP_GUI',
+            'CFBundleShortVersionString': '2.0.0',
+            'CFBundleVersion': '2.0.0',
+            'NSHumanReadableCopyright': 'Copyright © 2024 LLDP Analyzer',
+            'LSMinimumSystemVersion': '10.13',
             'NSAppTransportSecurity': {
                 'NSAllowsArbitraryLoads': True,
             },
         },
-        codesign_identity=None,
+        codesign_identity='-',
         entitlements_file='entitlements.plist',
     )
