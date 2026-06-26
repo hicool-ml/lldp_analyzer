@@ -23,13 +23,10 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            arch: x64
             platform: win
           - os: ubuntu-latest
-            arch: x64
             platform: linux
           - os: macos-latest
-            arch: arm64
             platform: macos
 
     steps:
@@ -41,7 +38,6 @@ jobs:
       with:
         python-version: "3.11"
         cache: 'pip'
-        architecture: ${{ matrix.arch }}
 
     - name: Install dependencies
       run: |
@@ -58,70 +54,99 @@ jobs:
     - name: Install system dependencies (macOS)
       if: matrix.platform == 'macos'
       run: |
-        brew install libpcap
+        brew install libpcap || true
 
     - name: Build GUI
       run: |
-        pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.arch }}
+        pyinstaller LLDP_GUI.spec --distpath dist/${{ matrix.platform }}
 
     - name: Build CLI
       run: |
-        pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}_${{ matrix.arch }}
+        pyinstaller LLDP_CLI.spec --distpath dist/${{ matrix.platform }}
 
-    - name: List dist directory
-      run: |
-        python -c "import os; [print(os.path.join(root, f)) for root, _, files in os.walk('dist') for f in files]"
-
-    - name: Rename artifacts (Windows)
+    - name: List dist directory (Windows)
       if: matrix.platform == 'win'
       shell: powershell
       run: |
-        cd dist/${{ matrix.platform }}_${{ matrix.arch }}
-        if (Test-Path "LLDP_GUI.exe") { Rename-Item "LLDP_GUI.exe" "LLDP_GUI_win_${{ matrix.arch }}.exe" -Force }
-        if (Test-Path "LLDP_CLI.exe") { Rename-Item "LLDP_CLI.exe" "LLDP_CLI_win_${{ matrix.arch }}.exe" -Force }
+        Get-ChildItem -Recurse dist
 
-    - name: Rename artifacts (Linux)
-      if: matrix.platform == 'linux'
+    - name: List dist directory (Unix)
+      if: matrix.platform != 'win'
       run: |
-        cd dist/${{ matrix.platform }}_${{ matrix.arch }}
-        if [ -f "LLDP_GUI" ]; then mv LLDP_GUI LLDP_GUI_linux_${{ matrix.arch }}; fi
-        if [ -f "LLDP_CLI" ]; then mv LLDP_CLI LLDP_CLI_linux_${{ matrix.arch }}; fi
-
-    - name: Rename artifacts (macOS)
-      if: matrix.platform == 'macos'
-      run: |
-        cd dist/${{ matrix.platform }}_${{ matrix.arch }}
-        if [ -d "LLDP_GUI.app" ]; then mv LLDP_GUI.app LLDP_GUI_macos_${{ matrix.arch }}.app; fi
-        if [ -f "LLDP_CLI" ]; then mv LLDP_CLI LLDP_CLI_macos_${{ matrix.arch }}; fi
+        find dist -type f
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: lldp-${{ matrix.platform }}-${{ matrix.arch }}
-        path: dist/${{ matrix.platform }}_${{ matrix.arch }}/
+        name: lldp-${{ matrix.platform }}
+        path: dist/${{ matrix.platform }}/
         retention-days: 7
 
   release:
     needs: [build]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/tags/v*'
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     steps:
-      - name: Download all artifacts
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: lldp-*
-          path: artifacts/
+          name: lldp-win
+          path: artifacts/win
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lldp-linux
+          path: artifacts/linux
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lldp-macos
+          path: artifacts/macos
 
       - name: Display structure of downloaded files
-        run: find artifacts -type f
+        run: ls -R artifacts
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
-          make_latest: true
+          tag_name: v2.0.0
+          name: LLDP Analyzer v2.0.0
+          body: |
+            ## Release Notes - v2.0.0
+
+            ### New Features
+            - Complete macOS support with dedicated network backend
+            - Full cross-platform support (Windows, macOS, Linux)
+            - MAC address spoofing support on macOS
+            - Static IP / DHCP configuration on macOS
+            - Enhanced privilege escalation handling
+
+            ### Bug Fixes
+            - Fixed LLDP packet capture timeout issue (5s wait for dual protocol CDP+LLDP)
+            - Fixed macOS AttributeError with hardcoded Windows backend
+            - Enhanced error handling and fallback mechanisms
+
+            ### Downloads
+
+            **Windows**
+            - LLDP_GUI.exe - GUI version for Windows
+            - LLDP_CLI.exe - CLI version for Windows
+
+            **Linux**
+            - LLDP_GUI - GUI version for Linux
+            - LLDP_CLI - CLI version for Linux
+
+            **macOS**
+            - LLDP_GUI.app - GUI version for macOS
+            - LLDP_CLI - CLI version for macOS
+          draft: false
+          prerelease: false
           files: |
-            artifacts/**/*
+            artifacts/win/**/*
+            artifacts/linux/**/*
+            artifacts/macos/**/*
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
