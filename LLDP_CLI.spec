@@ -8,8 +8,6 @@ import os
 
 block_cipher = None
 
-target_arch = os.environ.get('PYINSTALLER_TARGET_ARCH', None)
-
 a = Analysis(
     ['lldp.py'],
     pathex=[],
@@ -54,7 +52,7 @@ exe = EXE(
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=target_arch,
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
 )

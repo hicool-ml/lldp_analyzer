@@ -8,8 +8,6 @@ import os
 
 block_cipher = None
 
-target_arch = os.environ.get('PYINSTALLER_TARGET_ARCH', None)
-
 a = Analysis(
     ['lldp_gui.py'],
     pathex=[],
@@ -58,7 +56,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=target_arch,
+    target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
     icon='lldp_icon.ico' if sys.platform == 'win32' else 'lldp_icon.png',
