@@ -108,6 +108,36 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R artifacts
 
+      - name: Zip Windows GUI
+        run: |
+          cd artifacts/win
+          zip -r LLDP_GUI_Windows.zip LLDP_GUI
+
+      - name: Zip Windows CLI
+        run: |
+          cd artifacts/win
+          zip -r LLDP_CLI_Windows.zip LLDP_CLI
+
+      - name: Zip Linux GUI
+        run: |
+          cd artifacts/linux
+          zip -r LLDP_GUI_Linux.zip LLDP_GUI
+
+      - name: Zip Linux CLI
+        run: |
+          cd artifacts/linux
+          zip -r LLDP_CLI_Linux.zip LLDP_CLI
+
+      - name: Zip macOS GUI
+        run: |
+          cd artifacts/macos
+          zip -r LLDP_GUI_macOS.zip LLDP_GUI.app
+
+      - name: Zip macOS CLI
+        run: |
+          cd artifacts/macos
+          zip -r LLDP_CLI_macOS.zip LLDP_CLI
+
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -131,25 +161,25 @@ jobs:
             ### Downloads
 
             **Windows**
-            - LLDP_GUI.exe - GUI version for Windows
-            - LLDP_CLI.exe - CLI version for Windows
+            - LLDP_GUI_Windows.zip - GUI version for Windows
+            - LLDP_CLI_Windows.zip - CLI version for Windows
 
             **Linux**
-            - LLDP_GUI - GUI version for Linux
-            - LLDP_CLI - CLI version for Linux
+            - LLDP_GUI_Linux.zip - GUI version for Linux
+            - LLDP_CLI_Linux.zip - CLI version for Linux
 
             **macOS**
-            - LLDP_GUI.app - GUI version for macOS
-            - LLDP_CLI - CLI version for macOS
+            - LLDP_GUI_macOS.zip - GUI version for macOS
+            - LLDP_CLI_macOS.zip - CLI version for macOS
           draft: false
           prerelease: false
           files: |
-            artifacts/win/LLDP_GUI/LLDP_GUI.exe
-            artifacts/win/LLDP_CLI/LLDP_CLI.exe
-            artifacts/linux/LLDP_GUI/LLDP_GUI
-            artifacts/linux/LLDP_CLI/LLDP_CLI
-            artifacts/macos/LLDP_GUI.app/**/*
-            artifacts/macos/LLDP_CLI/LLDP_CLI
+            artifacts/win/LLDP_GUI_Windows.zip
+            artifacts/win/LLDP_CLI_Windows.zip
+            artifacts/linux/LLDP_GUI_Linux.zip
+            artifacts/linux/LLDP_CLI_Linux.zip
+            artifacts/macos/LLDP_GUI_macOS.zip
+            artifacts/macos/LLDP_CLI_macOS.zip
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
