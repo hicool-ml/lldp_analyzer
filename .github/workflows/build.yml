@@ -196,7 +196,7 @@ jobs:
           otool -L "$APP/Contents/MacOS/LLDP_GUI" | head -20
         fi
 
-    - name: Codesign and notarization prep
+    - name: Codesign and final permissions
       run: |
         APP="dist/macos/LLDP_GUI.app"
         
@@ -204,12 +204,26 @@ jobs:
         codesign --force --deep --sign - "$APP" 2>&1 || echo "codesign failed (non-fatal)"
         codesign --verify --deep --verbose=2 "$APP" 2>&1 || echo "codesign verify failed (non-fatal)"
         
+        echo "=== Re-setting executable permissions after codesign ==="
+        if [ -d "$APP/Contents/MacOS" ]; then
+          find "$APP/Contents/MacOS" -type f -name "LLDP_GUI" -exec chmod +x {} \;
+          find "$APP/Contents/MacOS" -type f -name "LLDP_CLI" -exec chmod +x {} \;
+          find "$APP/Contents/MacOS" -type f -name "*.dylib" -exec chmod +x {} \;
+        fi
+        if [ -f "dist/macos/LLDP_CLI/LLDP_CLI" ]; then
+          chmod +x "dist/macos/LLDP_CLI/LLDP_CLI"
+        fi
+        
         echo "=== Removing quarantine attributes ==="
         xattr -cr "$APP" || true
         xattr -cr "dist/macos/LLDP_CLI" || true
         
-        echo "=== Final app bundle check ==="
-        find "$APP" -maxdepth 3 -type f | sort
+        echo "=== Final permissions check ==="
+        echo "App executable:"
+        ls -la "$APP/Contents/MacOS/LLDP_GUI" 2>/dev/null || echo "Not found"
+        echo ""
+        echo "CLI executable:"
+        ls -la "dist/macos/LLDP_CLI/LLDP_CLI" 2>/dev/null || echo "Not found"
         echo ""
         echo "MacOS directory contents:"
         ls -la "$APP/Contents/MacOS/" 2>/dev/null || echo "MacOS dir not found"
@@ -219,6 +233,28 @@ jobs:
       with:
         name: lldp-macos
         path: dist/macos/
+        retention-days: 7
+
+    - name: Zip macOS builds
+      run: |
+        cd dist/macos
+        echo "=== Zipping GUI app ==="
+        ditto -c -k --sequesterRsrc --keepParent LLDP_GUI.app LLDP_GUI_macOS.zip
+        echo "=== Zipping CLI ==="
+        ditto -c -k --sequesterRsrc --keepParent LLDP_CLI LLDP_CLI_macOS.zip
+        echo "=== Verifying zips ==="
+        ls -lh *.zip
+        echo ""
+        echo "=== Checking zip contents ==="
+        unzip -l LLDP_GUI_macOS.zip | head -30
+
+    - name: Upload zipped artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: lldp-macos-zip
+        path: |
+          dist/macos/LLDP_GUI_macOS.zip
+          dist/macos/LLDP_CLI_macOS.zip
         retention-days: 7
 
   release:
@@ -241,7 +277,7 @@ jobs:
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
-          name: lldp-macos
+          name: lldp-macos-zip
           path: artifacts/macos
 
       - name: Zip Windows GUI
@@ -263,16 +299,6 @@ jobs:
         run: |
           cd artifacts/linux
           zip -r LLDP_CLI_Linux.zip LLDP_CLI
-
-      - name: Zip macOS GUI
-        run: |
-          cd artifacts/macos
-          zip -r LLDP_GUI_macOS.zip LLDP_GUI.app
-
-      - name: Zip macOS CLI
-        run: |
-          cd artifacts/macos
-          zip -r LLDP_CLI_macOS.zip LLDP_CLI
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
