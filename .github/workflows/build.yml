@@ -135,12 +135,44 @@ jobs:
       run: |
         pyinstaller LLDP_CLI.spec --distpath dist/macos
 
-    - name: Codesign and remove quarantine
+    - name: Debug: Show app bundle structure
       run: |
-        codesign --force --deep --sign - dist/macos/LLDP_GUI.app || true
-        codesign --force --sign - dist/macos/LLDP_CLI/LLDP_CLI || true
-        xattr -cr dist/macos/LLDP_GUI.app || true
-        xattr -cr dist/macos/LLDP_CLI || true
+        echo "=== App bundle structure ==="
+        find dist/macos/LLDP_GUI.app -type f | head -50
+        echo ""
+        echo "=== MacOS directory ==="
+        ls -la dist/macos/LLDP_GUI.app/Contents/MacOS/ || echo "MacOS dir not found"
+        echo ""
+        echo "=== Resources directory ==="
+        ls -la dist/macos/LLDP_GUI.app/Contents/Resources/ || echo "Resources dir not found"
+        echo ""
+        echo "=== Frameworks directory ==="
+        ls dist/macos/LLDP_GUI.app/Contents/Frameworks/ | head -20
+        echo ""
+        echo "=== Info.plist ==="
+        cat dist/macos/LLDP_GUI.app/Contents/Info.plist
+
+    - name: Fix app bundle and codesign
+      run: |
+        APP="dist/macos/LLDP_GUI.app"
+        EXEC="$APP/Contents/MacOS/LLDP_GUI"
+        
+        if [ -f "$APP/Contents/MacOS/LLDP_GUI" ]; then
+          chmod +x "$APP/Contents/MacOS/LLDP_GUI"
+        fi
+        
+        if [ -f "$APP/Contents/MacOS/LLDP_CLI" ]; then
+          chmod +x "$APP/Contents/MacOS/LLDP_CLI"
+        fi
+        
+        if [ -f "dist/macos/LLDP_CLI/LLDP_CLI" ]; then
+          chmod +x "dist/macos/LLDP_CLI/LLDP_CLI"
+        fi
+        
+        codesign --force --deep --sign - "$APP" || true
+        codesign --force --sign - "dist/macos/LLDP_CLI/LLDP_CLI" || true
+        xattr -cr "$APP" || true
+        xattr -cr "dist/macos/LLDP_CLI" || true
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
