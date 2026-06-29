@@ -248,7 +248,17 @@ def main():
             """Guide user to install packet capture support."""
             if _is_windows:
                 import webbrowser
-                webbrowser.open("https://npcap.com/dist/npcap-1.88.exe")
+                _mb.showinfo(
+                    "Install Packet Capture Driver",
+                    "LLDP Analyzer requires a packet capture driver on Windows.\n\n"
+                    "Recommended: Npcap (modern, maintained)\n"
+                    "  https://npcap.com/dist/npcap-1.88.exe\n\n"
+                    "Alternative: WinPcap (legacy)\n"
+                    "  https://www.winpcap.org/install/bin/WpdPack_4_1_2.exe\n\n"
+                    "If you already have WinPcap installed:\n"
+                    "  1. Install Npcap with 'WinPcap API-compatible mode'\n"
+                    "  2. Or enable Npcap compatibility in WinPcap settings"
+                )
             elif _is_macos:
                 import webbrowser
                 webbrowser.open("https://github.com/Homebrew/homebrew-cask/blob/master/Casks/chmodbpf.rb")
