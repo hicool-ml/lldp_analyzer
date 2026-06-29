@@ -1,45 +1,10 @@
 # PyInstaller runtime hook: runs BEFORE main script.
-# Ensures all project modules are included in the frozen binary.
+# Adds _MEIPASS to sys.path so bundled source modules are importable.
 import sys, os
 
-# Ensure the _internal dir is on sys.path for module discovery
-_internal = os.path.join(sys._MEIPASS if hasattr(sys, '_MEIPASS') else '', '_internal')
-if _internal not in sys.path:
+_meipass = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+if _meipass not in sys.path:
+    sys.path.insert(0, _meipass)
+_internal = os.path.join(_meipass, '_internal')
+if os.path.isdir(_internal) and _internal not in sys.path:
     sys.path.insert(0, _internal)
-
-import utils.__init__  # noqa: F401
-import utils.adapter_scanner  # noqa: F401
-import utils.capture_engine  # noqa: F401
-import utils.elevator  # noqa: F401
-import utils.hexdump  # noqa: F401
-import utils.interface_finder  # noqa: F401
-import utils.link_monitor  # noqa: F401
-import utils.lldp_sender  # noqa: F401
-import utils.packet_capture  # noqa: F401
-import utils.platform_utils  # noqa: F401
-import utils.protocol_parser  # noqa: F401
-import decoders.__init__  # noqa: F401
-import decoders.cisco_decoder  # noqa: F401
-import decoders.h3c_decoder  # noqa: F401
-import decoders.huawei_decoder  # noqa: F401
-import decoders.juniper_decoder  # noqa: F401
-import decoders.ruijie_decoder  # noqa: F401
-import network.__init__  # noqa: F401
-import network.backend  # noqa: F401
-import network.engine  # noqa: F401
-import network.platform  # noqa: F401
-import network.elevated_op  # noqa: F401
-import network.backends.__init__  # noqa: F401
-import network.core.interfaces  # noqa: F401
-try:
-    import network.backends.windows.adapter  # noqa: F401
-except ImportError:
-    pass
-try:
-    import network.backends.macos.adapter  # noqa: F401
-except ImportError:
-    pass
-try:
-    import network.backends.posix.adapter  # noqa: F401
-except ImportError:
-    pass

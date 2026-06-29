@@ -1,14 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""
-PyInstaller spec for LLDP Analyzer GUI.
-FIXED: Added pathex to ensure project modules are found during build.
-"""
-
-import sys
-import os
+import sys, os
 
 block_cipher = None
-
 spec_dir = os.path.abspath(os.path.curdir)
 
 a = Analysis(
@@ -17,54 +10,36 @@ a = Analysis(
     binaries=[],
     datas=[
         ('i18n/locales/', 'i18n/locales/'),
-        ('lldp_icon.png', '.'),
-        ('lldp_icon.ico', '.'),
-        ('lldp_icon.icns', '.'),
-        ('lldp.png', '.'),
+        ('lldp_icon.png', '.'), ('lldp_icon.ico', '.'),
+        ('lldp_icon.icns', '.'), ('lldp.png', '.'),
+        ('utils/', 'utils/'),
+        ('decoders/', 'decoders/'),
+        ('network/', 'network/'),
+        ('ui/', 'ui/'),
+        ('engine/', 'engine/'),
+        ('db/', 'db/'),
+        ('vendor_dispatcher.py', '.'),
     ],
     hiddenimports=[
-        'utils',
-        'utils.__init__',
-        'utils.adapter_scanner',
-        'utils.capture_engine',
-        'utils.elevator',
-        'utils.hexdump',
-        'utils.interface_finder',
-        'utils.link_monitor',
-        'utils.lldp_sender',
-        'utils.packet_capture',
-        'utils.platform_utils',
+        'utils.adapter_scanner', 'utils.capture_engine', 'utils.elevator',
+        'utils.hexdump', 'utils.interface_finder', 'utils.link_monitor',
+        'utils.lldp_sender', 'utils.packet_capture', 'utils.platform_utils',
         'utils.protocol_parser',
-        'network',
-        'network.__init__',
-        'network.backend',
-        'network.engine',
-        'network.platform',
-        'network.elevated_op',
-        'network.backends',
-        'network.backends.__init__',
-        'network.backends.windows',
-        'network.backends.windows.adapter',
-        'network.backends.macos',
-        'network.backends.macos.adapter',
-        'network.backends.posix',
-        'network.backends.posix.adapter',
-        'network.core',
-        'network.core.interfaces',
-        'decoders',
-        'decoders.__init__',
-        'decoders.cisco_decoder',
-        'decoders.h3c_decoder',
-        'decoders.huawei_decoder',
-        'decoders.juniper_decoder',
-        'decoders.ruijie_decoder',
+        'decoders.cisco_decoder', 'decoders.h3c_decoder', 'decoders.huawei_decoder',
+        'decoders.juniper_decoder', 'decoders.ruijie_decoder',
+        'network.backends.macos.adapter', 'network.backends.posix.adapter',
+        'network.backends.windows.adapter', 'network.core.interfaces',
+        'engine.decision_engine', 'engine.port_profile', 'engine.api',
+        'db.database',
+        'ui.main_window', 'ui.capture_page', 'ui.history_page',
+        'ui.network_page', 'ui.widgets', 'ui.styles',
+        'i18n.config', 'i18n.translations',
+        'scapy',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=['_import_all.py'],
-    excludes=[
-        'psutil',
-    ],
+    excludes=['psutil'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -74,33 +49,17 @@ a = Analysis(
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    exclude_binaries=True,
-    name='LLDP_GUI',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
+    pyz, a.scripts, [],
+    exclude_binaries=True, name='LLDP_GUI',
+    debug=False, bootloader_ignore_signals=False, strip=False, upx=True,
+    console=False, disable_windowed_traceback=False, argv_emulation=False,
+    target_arch=None, codesign_identity=None, entitlements_file=None,
     icon='lldp_icon.ico' if sys.platform == 'win32' else 'lldp_icon.png',
 )
 
 coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='LLDP_GUI',
+    exe, a.binaries, a.zipfiles, a.datas,
+    strip=False, upx=True, upx_exclude=[], name='LLDP_GUI',
 )
 
 if sys.platform == 'darwin':
@@ -118,11 +77,9 @@ if sys.platform == 'darwin':
             'CFBundleVersion': '2.0.0',
             'CFBundlePackageType': 'APPL',
             'CFBundleInfoDictionaryVersion': '6.0',
-            'NSHumanReadableCopyright': 'Copyright © 2024 LLDP Analyzer',
+            'NSHumanReadableCopyright': 'Copyright 2024 LLDP Analyzer',
             'LSMinimumSystemVersion': '10.13',
-            'NSAppTransportSecurity': {
-                'NSAllowsArbitraryLoads': True,
-            },
+            'NSAppTransportSecurity': {'NSAllowsArbitraryLoads': True},
             'NSRequiresAquaSystemAppearance': False,
         },
         codesign_identity='-',
