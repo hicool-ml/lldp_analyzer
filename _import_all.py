@@ -1,6 +1,11 @@
-# Auto-generated: imports all project modules so PyInstaller includes them.
-# Platform-specific backends are wrapped in try/except to prevent
-# ImportError on non-target platforms (e.g. windows adapter on macOS).
+# PyInstaller runtime hook: runs BEFORE main script.
+# Ensures all project modules are included in the frozen binary.
+import sys, os
+
+# Ensure the _internal dir is on sys.path for module discovery
+_internal = os.path.join(sys._MEIPASS if hasattr(sys, '_MEIPASS') else '', '_internal')
+if _internal not in sys.path:
+    sys.path.insert(0, _internal)
 
 import utils.__init__  # noqa: F401
 import utils.adapter_scanner  # noqa: F401
@@ -29,12 +34,12 @@ import network.core.interfaces  # noqa: F401
 try:
     import network.backends.windows.adapter  # noqa: F401
 except ImportError:
-    pass  # Windows-only; not available on macOS/Linux
+    pass
 try:
     import network.backends.macos.adapter  # noqa: F401
 except ImportError:
-    pass  # macOS-only
+    pass
 try:
     import network.backends.posix.adapter  # noqa: F401
 except ImportError:
-    pass  # Linux-only
+    pass

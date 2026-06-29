@@ -1,4 +1,3 @@
-import _import_all  # noqa: F401 - MUST be first import for PyInstaller
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """

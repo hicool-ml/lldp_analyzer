@@ -58,7 +58,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['_import_all.py'],
     excludes=[
         'psutil',
     ],
