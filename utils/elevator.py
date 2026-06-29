@@ -218,6 +218,15 @@ def _elevate_darwin(
             subprocess.Popen(sudo_cmd)
             return None
     else:
+        env_vars = []
+        for key in ["HOME", "PATH", "TMPDIR", "USER"]:
+            val = os.environ.get(key)
+            if val:
+                env_vars.append(f"{key}={shlex.quote(val)}")
+        
+        if env_vars:
+            cmd_str = " ".join(env_vars) + " " + cmd_str
+        
         escaped_cmd = cmd_str.replace('"', '\\"')
         osascript_cmd = [
             "osascript",
