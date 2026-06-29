@@ -135,6 +135,10 @@ jobs:
       run: |
         pyinstaller LLDP_CLI.spec --distpath dist/macos
 
+    - name: Build Helper
+      run: |
+        pyinstaller LLDP_Helper.spec --distpath dist/macos
+
     - name: "Debug: Show app bundle structure"
       run: |
         echo "=== App bundle structure ==="
@@ -185,6 +189,15 @@ jobs:
         
         if [ -f "dist/macos/LLDP_CLI/LLDP_CLI" ]; then
           chmod +x "dist/macos/LLDP_CLI/LLDP_CLI"
+        fi
+        
+        echo "=== Copying LLDP_Helper to app bundle ==="
+        if [ -f "dist/macos/LLDP_Helper/LLDP_Helper" ]; then
+          cp "dist/macos/LLDP_Helper/LLDP_Helper" "$APP/Contents/MacOS/"
+          chmod +x "$APP/Contents/MacOS/LLDP_Helper"
+          echo "Copied LLDP_Helper to MacOS"
+        else
+          echo "WARNING: LLDP_Helper not found!"
         fi
         
         echo "=== Verifying Info.plist ==="

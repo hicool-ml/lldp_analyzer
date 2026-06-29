@@ -299,6 +299,7 @@ def clear_ip(iface):
 
 def main():
     parser = argparse.ArgumentParser(description="LLDP Helper for macOS")
+    parser.add_argument("--json-out", help="Output JSON to file instead of stdout")
     subparsers = parser.add_subparsers(dest="command", help="Commands")
     
     # List interfaces
@@ -306,7 +307,9 @@ def main():
     
     # Capture LLDP
     capture_parser = subparsers.add_parser("capture", help="Capture LLDP packet")
-    capture_parser.add_argument("iface", help="Interface name")
+    capture_parser.add_argument("iface", nargs="?", default="", help="Interface name")
+    capture_parser.add_argument("--wait-for-link", action="store_true", help="Wait for link")
+    capture_parser.add_argument("--thorough", action="store_true", help="Thorough scan")
     
     # Restart adapter
     restart_parser = subparsers.add_parser("restart", help="Restart interface")
@@ -339,41 +342,48 @@ def main():
         print(json.dumps({"error": "No command specified"}))
         sys.exit(1)
     
+    def output(result):
+        if args.json_out:
+            with open(args.json_out, "w", encoding="utf-8") as f:
+                f.write(json.dumps(result))
+        else:
+            print(json.dumps(result))
+    
     try:
         if args.command == "list-ifaces":
             result = list_interfaces()
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "capture":
             result = capture_lldp(args.iface, continuous=False)
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "restart":
             result = restart_interface(args.iface)
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "set-mac":
             result = set_mac(args.iface, args.mac)
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "set-dhcp":
             result = set_dhcp(args.iface)
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "clear-ip":
             result = clear_ip(args.iface)
-            print(json.dumps(result))
+            output(result)
         
         elif args.command == "set-static":
             result = set_static(args.iface, args.ip, args.mask, args.gateway, dns=args.dns)
-            print(json.dumps(result))
+            output(result)
         
         else:
-            print(json.dumps({"error": f"Unknown command: {args.command}"}))
+            output({"error": f"Unknown command: {args.command}"})
             sys.exit(1)
     
     except Exception as e:
-        print(json.dumps({"error": str(e)}))
+        output({"error": str(e)})
         sys.exit(1)
 
 

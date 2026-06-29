@@ -218,10 +218,11 @@ def _elevate_darwin(
             subprocess.Popen(sudo_cmd)
             return None
     else:
+        escaped_cmd = cmd_str.replace('"', '\\"')
         osascript_cmd = [
             "osascript",
             "-e",
-            f'do shell script "{cmd_str}" with administrator privileges',
+            f'do shell script "{escaped_cmd}" with administrator privileges',
         ]
 
         if wait:
