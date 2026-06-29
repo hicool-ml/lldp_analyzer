@@ -4,6 +4,55 @@ Offline and online LLDP/CDP packet analyzer with vendor-specific private TLV dec
 
 Cross-platform: **Windows** (fully tested) and **macOS** (Apple Silicon + Intel).
 
+## Pre-built Binary Download
+
+Download the latest release from the [Releases page](https://github.com/hicool-ml/lldp_analyzer/releases).
+
+### Windows
+
+1. Download `LLDP_CLI_Windows.zip` or `LLDP_GUI_Windows.zip`
+2. Extract the ZIP
+3. **CLI**: Run `LLDP_CLI.exe` (right-click → Run as Administrator for online capture)
+4. **GUI**: Run `LLDP_GUI.exe` (auto-elevates via UAC)
+
+### Linux
+
+1. Download `LLDP_CLI_Linux.zip` or `LLDP_GUI_Linux.zip`
+2. Extract the ZIP
+3. Run `./LLDP_CLI` or `./LLDP_GUI`
+4. Online capture requires root: `sudo ./LLDP_CLI`
+
+### macOS (Apple Silicon)
+
+> **macOS GUI users**: Due to Apple's notarization requirements, the GUI app is ad-hoc signed. You need to remove the quarantine attribute before first launch. The CLI works without any extra steps.
+
+**CLI (recommended for macOS):**
+
+```bash
+# Download and extract
+unzip LLDP_CLI_macOS.zip
+# Run (auto-elevates via sudo for online capture)
+./LLDP_CLI/LLDP_CLI
+# Or offline parse:
+./LLDP_CLI/LLDP_CLI samples/ruijie_S2910.txt
+```
+
+**GUI:**
+
+```bash
+# Download and extract
+unzip LLDP_GUI_macOS.zip
+
+# Remove quarantine attribute (one-time)
+sudo xattr -rd com.apple.quarantine LLDP_GUI.app
+
+# Launch
+open LLDP_GUI.app
+```
+
+Alternatively, right-click `LLDP_GUI.app` → **Open** → click **Open** in the dialog. This only needs to be done once.
+
+
 ## Quick Start
 
 ### Windows
