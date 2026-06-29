@@ -10,7 +10,7 @@ import os
 
 block_cipher = None
 
-spec_dir = os.path.dirname(os.path.abspath(__file__))
+spec_dir = os.path.abspath(os.path.curdir)
 
 a = Analysis(
     ['lldp_helper.py'],
