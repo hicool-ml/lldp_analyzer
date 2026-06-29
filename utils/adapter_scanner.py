@@ -639,8 +639,6 @@ def scan_ethernet_adapters(
             "speed": "",
             "mtu": 0,
         })
-    except Exception:
-        pass
 
     # Simpler fallback for non-Windows or if above produced nothing
     if not results:
