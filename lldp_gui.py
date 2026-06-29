@@ -57,6 +57,8 @@ def _resource_path(relative):
 from i18n.translations import init_translations, get_translator, _
 from i18n.config import LanguageConfig
 
+import _import_all  # noqa: F401 - force PyInstaller to include all modules
+
 init_translations()
 
 # Load saved language preference or use system default
