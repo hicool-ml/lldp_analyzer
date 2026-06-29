@@ -239,10 +239,6 @@ class CapturePage:
 
         if is_frozen:
             exe = sys.executable
-            app_dir = os.path.dirname(exe)
-            helper_path = os.path.join(app_dir, "LLDP_Helper")
-            if os.path.isfile(helper_path):
-                exe = helper_path
             cmd_args = ["--json-out", json_path]
             if iface_name:
                 cmd_args.extend(["--interface", iface_name])
@@ -250,7 +246,7 @@ class CapturePage:
                 cmd_args.append("--wait-for-link")
             if self.thorough_var.get():
                 cmd_args.append("--thorough")
-            cwd = app_dir
+            cwd = os.path.dirname(exe)
         else:
             # Now uses SYSTEM Python (via the fixed startup elevation) so we
             # add PYTHONPATH to locate scapy in the venv's site-packages.
