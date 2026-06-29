@@ -79,14 +79,38 @@ def _run_cli_capture(json_out_path: str) -> int:
         except Exception:
             pass
 
-    # Redirect stdout so all print() from submodules land in the log
     _orig_stdout = sys.stdout
     sys.stdout = _log_file
     try:
         _log(f"START admin={_is_admin()} frozen={getattr(sys, 'frozen', False)}")
+        _log(f"argv: {sys.argv}")
+        
+        interface = None
+        wait_for_link = False
+        wait_for_both = False
+        
+        if "--interface" in sys.argv:
+            idx = sys.argv.index("--interface")
+            if idx + 1 < len(sys.argv):
+                interface = sys.argv[idx + 1]
+        
+        if "--wait-for-link" in sys.argv:
+            wait_for_link = True
+        
+        if "--thorough" in sys.argv:
+            wait_for_both = True
+        
+        _log(f"Parsed args: interface={interface}, wait_for_link={wait_for_link}, wait_for_both={wait_for_both}")
+        
         from utils.packet_capture import run_online_capture
         _log("--- run_online_capture starting ---")
-        results = run_online_capture(timeout=30, renegotiate=True)
+        results = run_online_capture(
+            timeout=30, 
+            renegotiate=True,
+            interface=interface,
+            wait_for_link=wait_for_link,
+            wait_for_both=wait_for_both
+        )
         _log(f"--- capture done, {len(results or [])} results ---")
         with open(json_out_path, "w", encoding="utf-8") as f:
             json.dump(results or [], f, default=str, ensure_ascii=False)
