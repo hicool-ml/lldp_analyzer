@@ -79,7 +79,8 @@ class LLDPMainWindow:
                 messagebox.showinfo(
                     _("settings"),
                     _("language") + ": " + self.translator.get_language_name(new_lang) + "\n\n" +
-                    "Language changed. Please restart the application for changes to take effect."
+                    "Language changed. Please restart the application for changes to take effect.",
+                    parent=self.root
                 )
 
     def load_offline_file(self, filepath: str):

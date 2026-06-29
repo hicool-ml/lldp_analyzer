@@ -406,9 +406,9 @@ class HistoryPage:
         if path:
             try:
                 n = self.db.export_csv(path)
-                messagebox.showinfo("Export", f"Exported {n} records to:\n{path}")
+                messagebox.showinfo("Export", f"Exported {n} records to:\n{path}", parent=self.frame.winfo_toplevel())
             except Exception as exc:
-                messagebox.showerror("Export Error", str(exc))
+                messagebox.showerror("Export Error", str(exc), parent=self.frame.winfo_toplevel())
 
     # ------------------------------------------------------------------
     # Called by main window after a capture is saved
