@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
 PyInstaller spec for LLDP Analyzer CLI.
+FIXED: Added pathex to ensure project modules are found during build.
 """
 
 import sys
@@ -8,14 +9,19 @@ import os
 
 block_cipher = None
 
+# Use the spec file directory as the project root
+spec_dir = os.path.dirname(os.path.abspath(__file__))
+
 a = Analysis(
     ['lldp.py'],
-    pathex=[],
+    pathex=[spec_dir],
     binaries=[],
     datas=[
         ('i18n/locales/', 'i18n/locales/'),
     ],
     hiddenimports=[
+        'utils',
+        'utils.__init__',
         'utils.adapter_scanner',
         'utils.capture_engine',
         'utils.elevator',
@@ -26,9 +32,24 @@ a = Analysis(
         'utils.packet_capture',
         'utils.platform_utils',
         'utils.protocol_parser',
+        'network',
+        'network.__init__',
+        'network.backend',
+        'network.engine',
+        'network.platform',
+        'network.elevated_op',
+        'network.backends',
+        'network.backends.__init__',
+        'network.backends.windows',
         'network.backends.windows.adapter',
+        'network.backends.macos',
         'network.backends.macos.adapter',
+        'network.backends.posix',
         'network.backends.posix.adapter',
+        'network.core',
+        'network.core.interfaces',
+        'decoders',
+        'decoders.__init__',
         'decoders.cisco_decoder',
         'decoders.h3c_decoder',
         'decoders.huawei_decoder',
