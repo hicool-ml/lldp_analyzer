@@ -87,6 +87,24 @@ def run_online_capture(
         List of captured and analyzed packets
     """
     _scapy_suppress()
+    
+    # Diagnostic: verify pcap library is loadable
+    print("[DEBUG] Checking pcap library availability...")
+    try:
+        import ctypes
+        if sys.platform == "win32":
+            # Try to load wpcap.dll (WinPcap) or npcap.dll (Npcap)
+            for dll_name in ["wpcap.dll", "npcap.dll"]:
+                try:
+                    ctypes.CDLL(dll_name)
+                    print(f"[DEBUG] Successfully loaded {dll_name}")
+                    break
+                except OSError as e:
+                    print(f"[DEBUG] Could not load {dll_name}: {e}")
+                    continue
+    except Exception as e:
+        print(f"[DEBUG] pcap DLL check exception: {e}")
+    
     if interface:
         from scapy.all import get_if_hwaddr
         adapters = scan_ethernet_adapters()

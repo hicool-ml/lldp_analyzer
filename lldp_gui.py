@@ -117,7 +117,9 @@ def _run_cli_capture(json_out_path: str) -> int:
         _log("JSON written")
         return 0
     except Exception as exc:
+        import traceback
         _log(f"ERROR {exc}")
+        _log(f"TRACEBACK: {traceback.format_exc()}")
         return 1
     finally:
         sys.stdout = _orig_stdout
