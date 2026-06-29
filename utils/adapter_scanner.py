@@ -560,32 +560,60 @@ def scan_ethernet_adapters(
         return results
 
     # Try the richer Windows Scapy list first (only on Windows)
+    windows_if_list = []
     try:
         from scapy.arch.windows import get_windows_if_list
-        for iface in get_windows_if_list():
-            name = str(iface.get("name", ""))
-            desc = str(iface.get("description", ""))
-            guid = iface.get("guid", "")
-            mac = str(iface.get("mac", "")).upper()
+        windows_if_list = list(get_windows_if_list())
+    except Exception:
+        pass
 
-            if not mac or mac == "00:00:00:00:00:00":
-                continue
-
-            if_type = _infer_if_type({"name": name, "description": desc})
-            loopback = (if_type == IF_LOOPBACK)
-
-            if skip_loopback and loopback:
-                continue
-            if require_ethernet and if_type != IF_WIRED:
-                continue
-            if filter_virtual_adapters and if_type == IF_VIRTUAL:
-                continue
-            # On macOS, filter out Wi-Fi/Thunderbolt/USB virtual adapters
-            if require_ethernet and sys.platform == "darwin":
-                if not is_darwin_physical_ethernet(name):
+    # Fallback: use generic get_if_list() if get_windows_if_list() returns empty
+    # This helps with WinPcap which might not be detected by get_windows_if_list()
+    if not windows_if_list:
+        try:
+            from scapy.all import get_if_list
+            generic_ifaces = get_if_list()
+            for ifname in generic_ifaces:
+                try:
+                    from scapy.all import get_if_hwaddr
+                    mac = get_if_hwaddr(ifname)
+                    if mac and mac != "00:00:00:00:00:00":
+                        windows_if_list.append({
+                            "name": ifname,
+                            "description": ifname,
+                            "guid": "",
+                            "mac": mac.upper(),
+                        })
+                except Exception:
                     continue
+        except Exception:
+            pass
 
-            scapy_name = ""
+    for iface in windows_if_list:
+        name = str(iface.get("name", ""))
+        desc = str(iface.get("description", ""))
+        guid = iface.get("guid", "")
+        mac = str(iface.get("mac", "")).upper()
+
+        if not mac or mac == "00:00:00:00:00:00":
+            continue
+
+        if_type = _infer_if_type({"name": name, "description": desc})
+        loopback = (if_type == IF_LOOPBACK)
+
+        if skip_loopback and loopback:
+            continue
+        if require_ethernet and if_type != IF_WIRED:
+            continue
+        if filter_virtual_adapters and if_type == IF_VIRTUAL:
+            continue
+        # On macOS, filter out Wi-Fi/Thunderbolt/USB virtual adapters
+        if require_ethernet and sys.platform == "darwin":
+            if not is_darwin_physical_ethernet(name):
+                continue
+
+        scapy_name = ""
+        if guid:
             for candidate in (rf"\Device\NPF_{guid}", name):
                 try:
                     test_mac = _hwaddr(candidate)
@@ -594,20 +622,23 @@ def scan_ethernet_adapters(
                 if test_mac and test_mac != "00:00:00:00:00:00":
                     scapy_name = candidate
                     break
+        else:
+            # No GUID (from generic fallback) - use name directly
+            scapy_name = name
 
-            results.append({
-                "name": name,
-                "description": desc,
-                "guid": guid,
-                "mac": mac,
-                "scapy_name": scapy_name,
-                "loopback": loopback,
-                "up": True,
-                "running": True,
-                "type": if_type,
-                "speed": "",
-                "mtu": 0,
-            })
+        results.append({
+            "name": name,
+            "description": desc,
+            "guid": guid,
+            "mac": mac,
+            "scapy_name": scapy_name,
+            "loopback": loopback,
+            "up": True,
+            "running": True,
+            "type": if_type,
+            "speed": "",
+            "mtu": 0,
+        })
     except Exception:
         pass
 
