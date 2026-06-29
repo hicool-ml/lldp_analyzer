@@ -1,3 +1,4 @@
+import _import_all  # noqa: F401 - MUST be first import for PyInstaller
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """LLDP/CDP 3.0 command line entry."""
@@ -14,7 +15,6 @@ from utils.elevator import run_elevated
 from utils.packet_capture import run_online_capture
 from utils.protocol_parser import parse_offline_file
 
-import _import_all  # noqa: F401 - force PyInstaller to include all modules
 
 
 class _TeeStream(io.TextIOBase):
