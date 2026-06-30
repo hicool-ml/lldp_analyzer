@@ -96,22 +96,59 @@ def run_online_capture(
     try:
         import ctypes
         if sys.platform == "win32":
-            npcap_ok = False
-            winpcap_ok = False
+            # IMPORTANT: Npcap installs npcap.dll in C:\Windows\System32\Npcap\
+            # which is NOT in the default DLL search path. ctypes.CDLL("npcap.dll")
+            # will therefore FAIL even when Npcap is properly installed.
+            # Meanwhile, Npcap also provides a compatible wpcap.dll in System32,
+            # so loading wpcap.dll succeeds under BOTH WinPcap and Npcap.
+            #
+            # Correct detection: check for the Npcap installation directory or
+            # registry key. If Npcap is present, it is NOT WinPcap — even if
+            # wpcap.dll loads fine.
+            npcap_installed = False
+            for npcap_path in [
+                r"C:\Windows\System32\Npcap",
+                r"C:\Windows\SysWOW64\Npcap",
+            ]:
+                if os.path.isdir(npcap_path):
+                    npcap_installed = True
+                    break
+            if not npcap_installed:
+                # Fallback: check registry
+                try:
+                    import winreg
+                    with winreg.OpenKey(
+                        winreg.HKEY_LOCAL_MACHINE,
+                        r"SOFTWARE\WOW6432Node\Npcap",
+                    ):
+                        npcap_installed = True
+                except Exception:
+                    try:
+                        import winreg
+                        with winreg.OpenKey(
+                            winreg.HKEY_LOCAL_MACHINE,
+                            r"SOFTWARE\Npcap",
+                        ):
+                            npcap_installed = True
+                    except Exception:
+                        pass
+
+            # Load the pcap DLL for diagnostic messaging
             for dll_name in ["npcap.dll", "wpcap.dll"]:
                 try:
                     ctypes.CDLL(dll_name)
-                    if dll_name == "npcap.dll":
-                        npcap_ok = True
-                    else:
-                        winpcap_ok = True
                     print(f"[DEBUG] Successfully loaded {dll_name}")
+                    break
                 except OSError:
                     continue
-            # WinPcap-only (Npcap not present): kernel BPF is unreliable.
-            if winpcap_ok and not npcap_ok:
+
+            # Final determination: WinPcap only if Npcap is NOT installed.
+            if not npcap_installed:
                 _is_winpcap = True
-                print("[DEBUG] WinPcap detected — will use software packet filtering")
+                print("[DEBUG] WinPcap detected (Npcap not installed) — "
+                      "will use software packet filtering")
+            else:
+                print("[DEBUG] Npcap detected — will use kernel BPF filtering")
     except Exception as e:
         print(f"[DEBUG] pcap DLL check exception: {e}")
     
