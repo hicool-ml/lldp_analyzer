@@ -125,6 +125,10 @@ def main() -> int:
                         help="Skip interactive menu and start online capture directly.")
     args = parser.parse_args()
 
+    # Debug: show what arguments were received (helps diagnose double-click issues)
+    if not args.json_out:
+        print(f"[DEBUG] sys.argv = {sys.argv}", file=sys.stderr)
+
     # Elevate BEFORE printing any banner — the elevated child will print it
     # exactly once.  If we are already root (e.g. `sudo python lldp.py`), skip.
     if _needs_admin(args) and not is_admin():
@@ -143,9 +147,7 @@ def main() -> int:
     # Interactive mode: if launched by double-click (no arguments, no
     # --json-out), offer a simple menu instead of silently failing.
     if not args.file and not args.json_out and not args.interface and not args.capture:
-        if len(sys.argv) == 1:
-            # No arguments at all — show interactive menu.
-            return _interactive_menu(args)
+        return _interactive_menu(args)
 
     # --json-out: redirect stdout to a .log file so the GUI can show
     # the same console output the CLI would produce, for debugging.
