@@ -268,50 +268,74 @@ def run_online_capture(
             store=False,
         )
 
+    # --- Capture start order differs between pcap backends ---
+    #
+    # Npcap (Windows), macOS, Linux: start the sniffer BEFORE the link toggle
+    #   so we don't miss the switch's link-up LLDP/CDP burst.
+    #
+    # WinPcap (Windows): the capture socket DIES when the interface is
+    #   disabled via netsh and does NOT recover on re-enable.  So we must
+    #   renegotiate FIRST, wait for link-up, and only then start the sniffer.
+    #   This means we may miss the initial link-up burst, but most switches
+    #   re-send LLDP within the default 30s interval, so we still capture it.
+
+    def _do_start_sniffer():
+        nonlocal sniffer, _sniff_error
+        try:
+            sniffer = _start_sniffer(use_filter=_use_bpf)
+            sniffer.start()
+            if _use_bpf:
+                print(f"[{_ts()}] Capture socket ready (filter={bpf_filter!r})")
+            else:
+                print(f"[{_ts()}] Capture socket ready (software filter — WinPcap mode)")
+        except Exception as exc:
+            print(f"[{_ts()}] [WARN] Capture start failed ({exc}); "
+                  f"retrying without kernel filter")
+            try:
+                if sniffer is not None:
+                    try:
+                        sniffer.stop()
+                    except Exception:
+                        pass
+                sniffer = _start_sniffer(use_filter=False)
+                sniffer.start()
+                print(f"[{_ts()}] Capture socket ready (software filter fallback)")
+            except Exception as exc2:
+                _sniff_error = str(exc2)
+                print(f"[{_ts()}] [ERROR] Failed to start capture: {exc2}")
+
     sniffer = None
     _use_bpf = not _is_winpcap
-    try:
-        sniffer = _start_sniffer(use_filter=_use_bpf)
-        sniffer.start()
-        if _use_bpf:
-            print(f"[{_ts()}] Capture socket ready (filter={bpf_filter!r})")
-        else:
-            print(f"[{_ts()}] Capture socket ready (software filter — WinPcap mode)")
-    except Exception as exc:
-        # WinPcap's BPF compiler occasionally rejects filters that Npcap
-        # accepts.  Retry once without the kernel filter; the on_packet
-        # callback still filters by protocol in software.
-        print(f"[{_ts()}] [WARN] Capture with BPF filter failed ({exc}); "
-              f"retrying without kernel filter")
-        try:
-            if sniffer is not None:
-                try:
-                    sniffer.stop()
-                except Exception:
-                    pass
-            sniffer = _start_sniffer(use_filter=False)
-            sniffer.start()
-            print(f"[{_ts()}] Capture socket ready (software filter fallback)")
-        except Exception as exc2:
-            _sniff_error = str(exc2)
-            print(f"[{_ts()}] [ERROR] Failed to start capture: {exc2}")
+
+    if _is_winpcap:
+        # WinPcap: renegotiate first, then start the sniffer.
+        if renegotiate:
+            trigger_link_renegotiation(iface["name"])
+            print(f"[{_ts()}] Link renegotiation triggered (WinPcap: pre-capture)")
+        if wait_for_link:
+            print(f"[{_ts()}] Waiting for link up...")
+            if not _wait_for_link_up(iface['name'], timeout=30):
+                print(f"[{_ts()}] [WARN] Link did not come up within 30s, continuing anyway")
+            else:
+                print(f"[{_ts()}] Link is UP")
+        _do_start_sniffer()
+        if _sniff_error:
             return []
-
-    # --- Now wait for link up (if requested) ---
-    if wait_for_link:
-        print(f"[{_ts()}] Waiting for link up...")
-        if not _wait_for_link_up(iface['name'], timeout=30):
-            print(f"[{_ts()}] [WARN] Link did not come up within 30s, continuing anyway")
-        else:
-            print(f"[{_ts()}] Link is UP")
-
-    # --- Then, trigger renegotiation (if requested) ---
-    # If the link was initially DOWN and has just come up, the switch should
-    # already be sending LLDP/CDP on its own.  But we still do renegotiation
-    # to force a fresh burst — this guarantees capture even on slow switches.
-    if renegotiate:
-        trigger_link_renegotiation(iface["name"])
-        print(f"[{_ts()}] Link renegotiation triggered — listening for LLDP/CDP frames")
+        print(f"[{_ts()}] Listening for LLDP/CDP frames")
+    else:
+        # Npcap / macOS / Linux: sniff first, then renegotiate.
+        _do_start_sniffer()
+        if _sniff_error:
+            return []
+        if wait_for_link:
+            print(f"[{_ts()}] Waiting for link up...")
+            if not _wait_for_link_up(iface['name'], timeout=30):
+                print(f"[{_ts()}] [WARN] Link did not come up within 30s, continuing anyway")
+            else:
+                print(f"[{_ts()}] Link is UP")
+        if renegotiate:
+            trigger_link_renegotiation(iface["name"])
+            print(f"[{_ts()}] Link renegotiation triggered — listening for LLDP/CDP frames")
 
     # --- Poll for captured packets with a deadline ---
     # Stop rules — two modes:
