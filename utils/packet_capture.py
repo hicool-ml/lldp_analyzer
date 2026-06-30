@@ -87,70 +87,15 @@ def run_online_capture(
         List of captured and analyzed packets
     """
     _scapy_suppress()
-    
-    # Diagnostic: verify pcap library is loadable, and detect WinPcap vs Npcap.
-    # WinPcap's BPF compiler is known to silently accept filter syntax that
-    # then captures zero packets, so we must avoid kernel-side filtering on it.
-    _is_winpcap = False
-    print("[DEBUG] Checking pcap library availability...")
-    try:
-        import ctypes
-        if sys.platform == "win32":
-            # IMPORTANT: Npcap installs npcap.dll in C:\Windows\System32\Npcap\
-            # which is NOT in the default DLL search path. ctypes.CDLL("npcap.dll")
-            # will therefore FAIL even when Npcap is properly installed.
-            # Meanwhile, Npcap also provides a compatible wpcap.dll in System32,
-            # so loading wpcap.dll succeeds under BOTH WinPcap and Npcap.
-            #
-            # Correct detection: check for the Npcap installation directory or
-            # registry key. If Npcap is present, it is NOT WinPcap — even if
-            # wpcap.dll loads fine.
-            npcap_installed = False
-            for npcap_path in [
-                r"C:\Windows\System32\Npcap",
-                r"C:\Windows\SysWOW64\Npcap",
-            ]:
-                if os.path.isdir(npcap_path):
-                    npcap_installed = True
-                    break
-            if not npcap_installed:
-                # Fallback: check registry
-                try:
-                    import winreg
-                    with winreg.OpenKey(
-                        winreg.HKEY_LOCAL_MACHINE,
-                        r"SOFTWARE\WOW6432Node\Npcap",
-                    ):
-                        npcap_installed = True
-                except Exception:
-                    try:
-                        import winreg
-                        with winreg.OpenKey(
-                            winreg.HKEY_LOCAL_MACHINE,
-                            r"SOFTWARE\Npcap",
-                        ):
-                            npcap_installed = True
-                    except Exception:
-                        pass
 
-            # Load the pcap DLL for diagnostic messaging
-            for dll_name in ["npcap.dll", "wpcap.dll"]:
-                try:
-                    ctypes.CDLL(dll_name)
-                    print(f"[DEBUG] Successfully loaded {dll_name}")
-                    break
-                except OSError:
-                    continue
-
-            # Final determination: WinPcap only if Npcap is NOT installed.
-            if not npcap_installed:
-                _is_winpcap = True
-                print("[DEBUG] WinPcap detected (Npcap not installed) — "
-                      "will use software packet filtering")
-            else:
-                print("[DEBUG] Npcap detected — will use kernel BPF filtering")
-    except Exception as e:
-        print(f"[DEBUG] pcap DLL check exception: {e}")
+    # Detect capture backend (Npcap / WinPcap / BPF / libpcap).
+    # Upper-layer code branches on capability flags, not product names.
+    from utils.capture_backend import detect_backend
+    _backend = detect_backend()
+    print(f"[DEBUG] {_backend.provider}"
+          + (f" {_backend.version}" if _backend.version else "")
+          + f" — kernel BPF: {_backend.supports_kernel_bpf}, "
+          f"survives link toggle: {_backend.survives_link_toggle}")
     
     if interface:
         from scapy.all import get_if_hwaddr
@@ -342,10 +287,10 @@ def run_online_capture(
                 print(f"[{_ts()}] [ERROR] Failed to start capture: {exc2}")
 
     sniffer = None
-    _use_bpf = not _is_winpcap
+    _use_bpf = _backend.supports_kernel_bpf
 
-    if _is_winpcap:
-        # WinPcap: renegotiate first, then start the sniffer.
+    if not _backend.survives_link_toggle:
+        # Backend kills capture socket on link down/up (WinPcap).
         if renegotiate:
             trigger_link_renegotiation(iface["name"])
             print(f"[{_ts()}] Link renegotiation triggered (WinPcap: pre-capture)")
