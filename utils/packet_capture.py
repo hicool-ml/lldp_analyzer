@@ -88,20 +88,30 @@ def run_online_capture(
     """
     _scapy_suppress()
     
-    # Diagnostic: verify pcap library is loadable
+    # Diagnostic: verify pcap library is loadable, and detect WinPcap vs Npcap.
+    # WinPcap's BPF compiler is known to silently accept filter syntax that
+    # then captures zero packets, so we must avoid kernel-side filtering on it.
+    _is_winpcap = False
     print("[DEBUG] Checking pcap library availability...")
     try:
         import ctypes
         if sys.platform == "win32":
-            # Try to load wpcap.dll (WinPcap) or npcap.dll (Npcap)
-            for dll_name in ["wpcap.dll", "npcap.dll"]:
+            npcap_ok = False
+            winpcap_ok = False
+            for dll_name in ["npcap.dll", "wpcap.dll"]:
                 try:
                     ctypes.CDLL(dll_name)
+                    if dll_name == "npcap.dll":
+                        npcap_ok = True
+                    else:
+                        winpcap_ok = True
                     print(f"[DEBUG] Successfully loaded {dll_name}")
-                    break
-                except OSError as e:
-                    print(f"[DEBUG] Could not load {dll_name}: {e}")
+                except OSError:
                     continue
+            # WinPcap-only (Npcap not present): kernel BPF is unreliable.
+            if winpcap_ok and not npcap_ok:
+                _is_winpcap = True
+                print("[DEBUG] WinPcap detected — will use software packet filtering")
     except Exception as e:
         print(f"[DEBUG] pcap DLL check exception: {e}")
     
@@ -259,10 +269,14 @@ def run_online_capture(
         )
 
     sniffer = None
+    _use_bpf = not _is_winpcap
     try:
-        sniffer = _start_sniffer(use_filter=True)
+        sniffer = _start_sniffer(use_filter=_use_bpf)
         sniffer.start()
-        print(f"[{_ts()}] Capture socket ready (filter={bpf_filter!r})")
+        if _use_bpf:
+            print(f"[{_ts()}] Capture socket ready (filter={bpf_filter!r})")
+        else:
+            print(f"[{_ts()}] Capture socket ready (software filter — WinPcap mode)")
     except Exception as exc:
         # WinPcap's BPF compiler occasionally rejects filters that Npcap
         # accepts.  Retry once without the kernel filter; the on_packet

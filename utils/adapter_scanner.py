@@ -439,13 +439,19 @@ def _is_running(status: str) -> bool:
 
 
 def _normalize_guid(guid: str) -> str:
-    """Normalize a Windows interface GUID to bare form (no braces)."""
+    r"""Normalize a Windows interface GUID to bare form (no braces).
+
+    Case is PRESERVED because scapy's get_if_list() on WinPcap returns the
+    NPF device path with the GUID in uppercase (e.g. \Device\NPF_{37D0C54B-...}).
+    Lowercasing the GUID would produce a device path that WinPcap does not
+    recognise, causing zero packets to be captured.
+    """
     if not guid:
         return ""
     g = guid.strip()
     if g.startswith("{") and g.endswith("}"):
         g = g[1:-1]
-    return g.lower()
+    return g
 
 
 def _resolve_scapy_name(
@@ -488,15 +494,15 @@ def _resolve_scapy_name(
     scapy_by_guid = {}
     scapy_by_name = {}
     for key, rec in scapy_lookup.items():
-        scapy_by_guid[_normalize_guid(str(key))] = rec
+        scapy_by_guid[_normalize_guid(str(key)).lower()] = rec
         rec_name = str(rec.get("name", "") or rec.get("description", ""))
         if rec_name:
             scapy_by_name[rec_name.lower()] = rec
 
     # (a) If Scapy knows this interface by GUID or name, prefer the NPF form.
     known_rec = None
-    if guid_norm and guid_norm in scapy_by_guid:
-        known_rec = scapy_by_guid[guid_norm]
+    if guid_norm and guid_norm.lower() in scapy_by_guid:
+        known_rec = scapy_by_guid[guid_norm.lower()]
     elif name and name.lower() in scapy_by_name:
         known_rec = scapy_by_name[name.lower()]
     if known_rec is not None:
