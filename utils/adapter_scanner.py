@@ -438,6 +438,94 @@ def _is_running(status: str) -> bool:
     return status.lower() == "up"
 
 
+def _normalize_guid(guid: str) -> str:
+    """Normalize a Windows interface GUID to bare form (no braces)."""
+    if not guid:
+        return ""
+    g = guid.strip()
+    if g.startswith("{") and g.endswith("}"):
+        g = g[1:-1]
+    return g.lower()
+
+
+def _resolve_scapy_name(
+    name: str,
+    guid: str,
+    mac: str,
+    scapy_lookup: dict,
+    hwaddr_fn,
+) -> str:
+    """Resolve the Scapy interface identifier that actually works for capture.
+
+    WinPcap and Npcap differ in subtle ways:
+      * Npcap exposes interfaces as \\Device\\NPF_{GUID} and accepts that
+        name for sniffing and for get_if_hwaddr().
+      * WinPcap also uses \\Device\\NPF_{GUID}, but Scapy's
+        get_windows_if_list() under WinPcap sometimes returns the friendly
+        name as the lookup key and the guid field may be empty or formatted
+        differently (with/without braces).
+      * get_if_hwaddr() may raise on a valid NPF name under WinPcap even
+        though sniffing works, so we cannot rely on it as the sole signal.
+
+    Strategy: build a candidate list in priority order and return the first
+    one that either (a) appears in scapy_lookup by GUID/name, or (b) passes a
+    get_if_hwaddr() probe matching the known MAC.  If none probe successfully,
+    fall back to the NPF name (which is the canonical pcap device) so the
+    sniffer still receives a real device path rather than an empty string.
+    """
+    guid_norm = _normalize_guid(guid)
+    candidates = []
+
+    # NPF device names — try with and without braces.
+    if guid_norm:
+        candidates.append(rf"\Device\NPF_{{{guid_norm}}}")
+        candidates.append(rf"\Device\NPF_{guid_norm}")
+    if name:
+        candidates.append(name)
+
+    # Look up via Scapy's own interface table (build a normalized index once).
+    # scapy_lookup maps guid -> scapy record; some Scapy versions key by name.
+    scapy_by_guid = {}
+    scapy_by_name = {}
+    for key, rec in scapy_lookup.items():
+        scapy_by_guid[_normalize_guid(str(key))] = rec
+        rec_name = str(rec.get("name", "") or rec.get("description", ""))
+        if rec_name:
+            scapy_by_name[rec_name.lower()] = rec
+
+    # (a) If Scapy knows this interface by GUID or name, prefer the NPF form.
+    known_rec = None
+    if guid_norm and guid_norm in scapy_by_guid:
+        known_rec = scapy_by_guid[guid_norm]
+    elif name and name.lower() in scapy_by_name:
+        known_rec = scapy_by_name[name.lower()]
+    if known_rec is not None:
+        # Return the canonical NPF device name when available.
+        if guid_norm:
+            return rf"\Device\NPF_{{{guid_norm}}}"
+        return name
+
+    # (b) Probe each candidate by reading its MAC address.
+    for cand in candidates:
+        if not cand:
+            continue
+        try:
+            test_mac = hwaddr_fn(cand)
+        except Exception:
+            continue
+        if test_mac and test_mac.upper().replace("-", ":") == mac.upper().replace("-", ":"):
+            return cand
+        # Some drivers return a slightly different casing/format; accept any
+        # non-zero MAC as "this device is addressable" to avoid empty results.
+        if test_mac and test_mac.upper() != "00:00:00:00:00:00":
+            return cand
+
+    # (c) Last resort: return the NPF name (canonical pcap device path).
+    if guid_norm:
+        return rf"\Device\NPF_{{{guid_norm}}}"
+    return name
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -518,24 +606,8 @@ def scan_ethernet_adapters(
             if filter_virtual_adapters and if_type == IF_VIRTUAL:
                 continue
 
-            # Resolve scapy name
-            scapy_name = ""
-            if guid:
-                for candidate in (rf"\Device\NPF_{guid}", name):
-                    try:
-                        s_info = scapy_lookup.get(guid)
-                        if s_info:
-                            scapy_name = candidate
-                            break
-                        test_mac = _hwaddr(candidate)
-                        if test_mac and test_mac != "00:00:00:00:00:00":
-                            scapy_name = candidate
-                            break
-                    except Exception:
-                        continue
-
-            if not scapy_name and guid:
-                scapy_name = rf"\Device\NPF_{guid}"
+            # Resolve scapy name (robust across WinPcap and Npcap)
+            scapy_name = _resolve_scapy_name(name, guid, mac, scapy_lookup, _hwaddr)
 
             status = ad.get("status", "")
             results.append({
@@ -612,19 +684,7 @@ def scan_ethernet_adapters(
             if not is_darwin_physical_ethernet(name):
                 continue
 
-        scapy_name = ""
-        if guid:
-            for candidate in (rf"\Device\NPF_{guid}", name):
-                try:
-                    test_mac = _hwaddr(candidate)
-                except Exception:
-                    continue
-                if test_mac and test_mac != "00:00:00:00:00:00":
-                    scapy_name = candidate
-                    break
-        else:
-            # No GUID (from generic fallback) - use name directly
-            scapy_name = name
+        scapy_name = _resolve_scapy_name(name, guid, mac, {}, _hwaddr)
 
         results.append({
             "name": name,

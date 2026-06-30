@@ -214,20 +214,74 @@ def run_online_capture(
     # This is the critical fix that matches the old project: start capturing
     # first, then wait for link / trigger renegotiation.  Otherwise the
     # switch's link-up LLDP burst happens before we are listening.
-    print(f"[{_ts()}] Starting persistent capture socket...")
-    try:
-        sniffer = AsyncSniffer(
-            iface=iface["scapy_name"],
-            filter=bpf_filter,
+    #
+    # On Windows the Scapy interface identifier (scapy_name) MUST be a real
+    # pcap device path that Scapy's get_if_list() actually knows about.
+    # WinPcap and Npcap enumerate devices slightly differently, so we verify
+    # the chosen name and, if it is not recognized, try the friendly name and
+    # the canonical \Device\NPF_{GUID} form before giving up.
+    scapy_iface = iface["scapy_name"]
+    if sys.platform == "win32" and scapy_iface:
+        try:
+            from scapy.all import get_if_list as _get_if_list
+            known_ifaces = set(_get_if_list())
+        except Exception:
+            known_ifaces = set()
+        if known_ifaces and scapy_iface not in known_ifaces:
+            print(f"[{_ts()}] [WARN] Interface '{scapy_iface}' not in Scapy device list; "
+                  f"attempting fallback resolution")
+            guid = iface.get("guid", "")
+            tried = [scapy_iface, iface.get("name", "")]
+            if guid:
+                g = guid.strip().strip("{}")
+                tried.extend([rf"\Device\NPF_{{{g}}}", rf"\Device\NPF_{g}"])
+            resolved = ""
+            for cand in tried:
+                if cand and cand in known_ifaces:
+                    resolved = cand
+                    break
+            if resolved:
+                scapy_iface = resolved
+                iface["scapy_name"] = resolved
+                print(f"[{_ts()}] [OK] Resolved interface to: {resolved}")
+            else:
+                print(f"[{_ts()}] [WARN] Could not match interface to a known Scapy device. "
+                      f"Capture may fail. Known devices: {len(known_ifaces)}")
+
+    print(f"[{_ts()}] Starting persistent capture socket on '{scapy_iface}'...")
+
+    def _start_sniffer(use_filter: bool):
+        return AsyncSniffer(
+            iface=scapy_iface,
+            filter=bpf_filter if use_filter else "",
             prn=on_packet,
             store=False,
         )
+
+    sniffer = None
+    try:
+        sniffer = _start_sniffer(use_filter=True)
         sniffer.start()
-        print(f"[{_ts()}] Capture socket ready")
+        print(f"[{_ts()}] Capture socket ready (filter={bpf_filter!r})")
     except Exception as exc:
-        _sniff_error = str(exc)
-        print(f"[{_ts()}] [ERROR] Failed to start capture: {exc}")
-        return []
+        # WinPcap's BPF compiler occasionally rejects filters that Npcap
+        # accepts.  Retry once without the kernel filter; the on_packet
+        # callback still filters by protocol in software.
+        print(f"[{_ts()}] [WARN] Capture with BPF filter failed ({exc}); "
+              f"retrying without kernel filter")
+        try:
+            if sniffer is not None:
+                try:
+                    sniffer.stop()
+                except Exception:
+                    pass
+            sniffer = _start_sniffer(use_filter=False)
+            sniffer.start()
+            print(f"[{_ts()}] Capture socket ready (software filter fallback)")
+        except Exception as exc2:
+            _sniff_error = str(exc2)
+            print(f"[{_ts()}] [ERROR] Failed to start capture: {exc2}")
+            return []
 
     # --- Now wait for link up (if requested) ---
     if wait_for_link:

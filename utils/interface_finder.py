@@ -43,7 +43,8 @@ def get_physical_ethernet_interface() -> dict[str, Any] | None:
 
     best = pick_best_adapter(adapters)
     if best:
-        print(f"[OK] Interface: {best['name']} ({best['mac']})")
+        sn = best.get("scapy_name", "") or "(empty)"
+        print(f"[OK] Interface: {best['name']} ({best['mac']})  [scapy: {sn}]")
     return best
 
 
