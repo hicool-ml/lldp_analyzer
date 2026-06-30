@@ -321,6 +321,19 @@ def run_online_capture(
         _do_start_sniffer()
         if _sniff_error:
             return []
+        # WinPcap: verify the sniffer thread is actually alive.  WinPcap's
+        # AsyncSniffer.start() can return without error even when the pcap
+        # adapter is dead (e.g. adapter handle from a previous run not yet
+        # released, or link not fully up). The error only surfaces on stop().
+        time.sleep(0.5)
+        if hasattr(sniffer, "thread") and sniffer.thread is not None:
+            if not sniffer.thread.is_alive():
+                print(f"[{_ts()}] [WARN] Sniffer thread died immediately; "
+                      f"adapter may be busy or link not ready. Retrying...")
+                time.sleep(1)
+                _do_start_sniffer()
+                if _sniff_error:
+                    return []
         print(f"[{_ts()}] Listening for LLDP/CDP frames")
     else:
         # Npcap / macOS / Linux: sniff first, then renegotiate.
@@ -392,7 +405,10 @@ def run_online_capture(
                 # CDP seen but not LLDP yet (Cisco SG300) → keep listening.
         time.sleep(0.05)
 
-    sniffer.stop()
+    try:
+        sniffer.stop()
+    except Exception as stop_exc:
+        print(f"[{_ts()}] [WARN] sniffer.stop() error (ignored): {stop_exc}")
     print(f"[{_ts()}] Capture finished")
 
     if _sniff_error:
