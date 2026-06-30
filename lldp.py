@@ -35,6 +35,55 @@ class _TeeStream(io.TextIOBase):
         self._orig.flush()
 
 
+
+def _interactive_menu(args: argparse.Namespace) -> int:
+    """Show a simple menu when the exe is double-clicked (no arguments)."""
+    print()
+    print("  1. Online capture (scan for LLDP/CDP neighbors)")
+    print("  2. Parse offline hex file")
+    print("  3. Exit")
+    print()
+    try:
+        choice = input("Select [1-3]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return 0
+
+    if choice == "1":
+        # Online capture — needs admin, elevate now.
+        if not is_admin():
+            script_path = os.path.abspath(sys.argv[0])
+            rc = run_elevated(
+                [script_path, "--capture"],
+                executable=sys.executable,
+                wait=True,
+                show_window=True,
+            )
+            return rc or 0
+        results = run_online_capture(
+            timeout=args.timeout,
+            renegotiate=not args.no_renegotiate,
+            wait_for_link=args.wait_for_link,
+            wait_for_both=args.thorough,
+        )
+        wait_for_q_to_exit()
+        return 0
+
+    if choice == "2":
+        try:
+            filepath = input("Enter hex file path: ").strip().strip('"')
+        except (EOFError, KeyboardInterrupt):
+            return 0
+        if filepath and os.path.isfile(filepath):
+            output_mode = "debug" if args.debug else ("verbose" if args.verbose else "normal")
+            parse_offline_file(filepath, output_mode=output_mode)
+        else:
+            print(f"[ERROR] File not found: {filepath}")
+        wait_for_q_to_exit()
+        return 0
+
+    return 0
+
+
 def main() -> int:
     if sys.platform == "win32":
         os.system("chcp 65001 > nul")
@@ -72,6 +121,8 @@ def main() -> int:
                         help="Write online capture results as JSON to this path (for GUI automation).")
     parser.add_argument("--interface", default=None,
                         help="Use this interface name (skip auto-detection).")
+    parser.add_argument("--capture", action="store_true",
+                        help="Skip interactive menu and start online capture directly.")
     args = parser.parse_args()
 
     # Elevate BEFORE printing any banner — the elevated child will print it
@@ -89,6 +140,13 @@ def main() -> int:
     # From this point on we are either already root, or doing offline work.
     show_banner()
 
+    # Interactive mode: if launched by double-click (no arguments, no
+    # --json-out), offer a simple menu instead of silently failing.
+    if not args.file and not args.json_out and not args.interface and not args.capture:
+        if len(sys.argv) == 1:
+            # No arguments at all — show interactive menu.
+            return _interactive_menu(args)
+
     # --json-out: redirect stdout to a .log file so the GUI can show
     # the same console output the CLI would produce, for debugging.
     _log_file = None
@@ -104,6 +162,9 @@ def main() -> int:
             output_mode = "debug" if args.debug else ("verbose" if args.verbose else "normal")
 
             if args.file:
+                if not os.path.isfile(args.file):
+                    print(f"[ERROR] File not found: {args.file}")
+                    return 1
                 parse_offline_file(args.file, output_mode=output_mode)
                 return exit_code
 
