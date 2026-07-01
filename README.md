@@ -34,7 +34,7 @@ unzip LLDP_CLI_macOS.zip
 # Run (auto-elevates via sudo for online capture)
 ./LLDP_CLI/LLDP_CLI
 # Or offline parse:
-./LLDP_CLI/LLDP_CLI samples/ruijie_S2910.txt
+./LLDP_CLI/LLDP_CLI <your_capture.txt>
 ```
 
 **GUI:**
@@ -193,24 +193,6 @@ Organizational TLVs by OUI:
 ### CDP (Cisco Discovery Protocol)
 
 All TLV types through `0x001A`: Device ID, Address, Port ID, Capabilities (bitfield), Software Version, Platform, IP Prefix, VTP Management Domain, Duplex, VoIP VLAN, Power Request/Available, Trust Bitmap, System Name, Management Address, Location.
-
-### Sample Files
-
-The `samples/` directory contains real captured packets for offline testing:
-
-```
-samples/
-  ruijie_S2910.txt            Ruijie S2910 (LLDP) — 16 TLVs
-  H3C-S5120V2-28P-SI.txt      H3C S5120V2 (LLDP)
-  H3C_FINAL_453bytes.txt       H3C LLDP (compact)
-  S12700E.txt                  Huawei S12700E (LLDP)
-  S5700-52P-LI-AC.txt          Huawei S5700 (LLDP)
-  cisco_cdp.txt                Cisco CDP packet
-  cisco_lldp.txt               Cisco LLDP packet
-  juniper_10016.txt            Juniper MX10016 (LLDP)
-  juniper_qfx5110.txt          Juniper QFX5110 (LLDP + DCBXP)
-  ruijie.txt                   Ruijie (LLDP)
-```
 
 ## Architecture Overview
 
@@ -374,5 +356,4 @@ utils/
   platform_utils.py        Platform detection, theme, resource path
   protocol_parser.py       Shared LLDP/CDP parser + display formatting
 
-samples/                   10 real captured packet files for offline testing
 ```

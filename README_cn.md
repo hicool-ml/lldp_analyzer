@@ -34,7 +34,7 @@ unzip LLDP_CLI_macOS.zip
 # 运行（在线抓包自动通过 sudo 提权）
 ./LLDP_CLI/LLDP_CLI
 # 或离线解析：
-./LLDP_CLI/LLDP_CLI samples/ruijie_S2910.txt
+./LLDP_CLI/LLDP_CLI <your_capture.txt>
 ```
 
 **GUI：**
@@ -192,24 +192,6 @@ brew install homebrew/cask/chmodbpf
 ### CDP（Cisco Discovery Protocol）
 
 支持全部 TLV 类型至 `0x001A`：Device ID、Address、Port ID、Capabilities、Software Version、Platform、Duplex、VLAN、Power、System Name、Management Address、Location。
-
-### 示例文件
-
-`samples/` 目录包含真实抓包文件，可用于离线测试：
-
-```
-samples/
-  ruijie_S2910.txt            锐捷 S2910（LLDP）— 16 个 TLV
-  H3C-S5120V2-28P-SI.txt      H3C S5120V2（LLDP）
-  H3C_FINAL_453bytes.txt       H3C LLDP（精简）
-  S12700E.txt                 华为 S12700E（LLDP）
-  S5700-52P-LI-AC.txt         华为 S5700（LLDP）
-  cisco_cdp.txt               Cisco CDP 报文
-  cisco_lldp.txt              Cisco LLDP 报文
-  juniper_10016.txt           Juniper MX10016（LLDP）
-  juniper_qfx5110.txt         Juniper QFX5110（LLDP + DCBXP）
-  ruijie.txt                  锐捷（LLDP）
-```
 
 ## 架构概述
 
@@ -373,5 +355,4 @@ utils/
   platform_utils.py        平台检测、主题、资源路径
   protocol_parser.py       LLDP/CDP 解析器与格式化
 
-samples/                   10 个真实抓包文件，供离线测试
 ```
