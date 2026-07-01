@@ -125,16 +125,30 @@ def main() -> int:
                         help="Skip interactive menu and start online capture directly.")
     args = parser.parse_args()
 
+    # PyInstaller on Windows sometimes duplicates the exe path in argv,
+    # causing argparse to treat it as the positional "file" argument.
+    # If args.file matches our own exe path, ignore it.
+    if args.file:
+        exe_path = os.path.abspath(sys.argv[0]).lower()
+        file_path = os.path.abspath(args.file).lower()
+        if file_path == exe_path:
+            args.file = None
+
     # Debug: show what arguments were received (helps diagnose double-click issues)
     if not args.json_out:
         print(f"[DEBUG] sys.argv = {sys.argv}", file=sys.stderr)
+        print(f"[DEBUG] args.file = {args.file!r}", file=sys.stderr)
 
     # Elevate BEFORE printing any banner — the elevated child will print it
     # exactly once.  If we are already root (e.g. `sudo python lldp.py`), skip.
     if _needs_admin(args) and not is_admin():
         script_path = os.path.abspath(sys.argv[0])
+        # Filter out any argv entries that are just the exe path itself
+        # (PyInstaller sometimes duplicates it in the elevated child).
+        child_args = [a for a in sys.argv[1:]
+                      if os.path.abspath(a).lower() != script_path.lower()]
         rc = run_elevated(
-            [script_path] + sys.argv[1:],
+            [script_path] + child_args,
             executable=sys.executable,
             wait=True,
             show_window=True
