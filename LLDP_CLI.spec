@@ -10,6 +10,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('i18n/locales/', 'i18n/locales/'),
+        ('runtime/', 'runtime/'),
         ('utils/', 'utils/'),
         ('decoders/', 'decoders/'),
         ('network/', 'network/'),
@@ -19,7 +20,8 @@ a = Analysis(
         ('vendor_dispatcher.py', '.'),
     ],
     hiddenimports=[
-        'utils.adapter_scanner', 'utils.capture_backend', 'utils.capture_engine', 'utils.elevator',
+        'utils.adapter_scanner', 'utils.capture_backend', 'utils.capture_engine',
+        'runtime', 'runtime.checker', 'runtime.models', 'runtime.macos', 'runtime.linux', 'runtime.windows', 'utils.elevator',
         'utils.hexdump', 'utils.interface_finder', 'utils.link_monitor',
         'utils.lldp_sender', 'utils.packet_capture', 'utils.platform_utils',
         'utils.protocol_parser',

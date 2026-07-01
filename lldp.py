@@ -12,7 +12,7 @@ import sys
 from utils.elevator import is_admin
 from utils.elevator import run_elevated
 from utils.packet_capture import run_online_capture
-from utils.platform_utils import print_environment_check
+from runtime import check_runtime, format_cli, format_diagnostics
 from utils.protocol_parser import parse_offline_file
 
 
@@ -89,10 +89,21 @@ def main() -> int:
     if sys.platform == "win32":
         os.system("chcp 65001 > nul")
 
-    # Environment check: verify scapy + capture deps before doing anything.
-    # On macOS/Linux this catches missing scapy or BPF permission issues.
+    # Runtime capability check: verify capture dependencies before doing anything.
     try:
-        print_environment_check()
+        _status = check_runtime()
+        print(format_cli(_status))
+        if not _status.ok:
+            print()
+            for r in _status.errors:
+                if r.fix:
+                    print(f"  [FIX] {r.fix.label}")
+                    if r.fix.command:
+                        print(f"        {r.fix.command}")
+                    if r.fix.url:
+                        print(f"        {r.fix.url}")
+                    print(f"        {r.fix.description}")
+                    print()
     except Exception:
         pass  # don't block execution if the check itself fails
 

@@ -187,41 +187,99 @@ def _check_packet_capture_support() -> tuple[bool, str]:
 
 
 def _gui_environment_check():
-    """Check runtime deps and show a dialog if something is missing.
+    """Pre-flight runtime check with a dialog offering fixes.
 
-    Returns True if the environment is ready for capture.
+    Shows a dialog with PASS/FAIL for each capability and buttons to
+    open install pages, copy commands, export diagnostics, or retry.
+    Returns True if the environment is ready.
     """
     try:
-        from utils.platform_utils import check_runtime_environment
+        from runtime import check_runtime, format_diagnostics
     except ImportError:
-        return True  # don't block if the function doesn't exist
-
-    env = check_runtime_environment()
-    if env["capture_ready"]:
         return True
 
-    # Build a helpful message
-    msg_lines = ["Environment check found issues:\n"]
-    for issue in env["issues"]:
-        msg_lines.append(f"  \u2022 {issue}")
-    if env["fix_hints"]:
-        msg_lines.append("\nTo fix:")
-        for hint in env["fix_hints"]:
-            msg_lines.append(f"  {hint}")
+    status = check_runtime()
+    if status.ok:
+        return True
 
     try:
         import tkinter as tk
-        from tkinter import messagebox as mb
-        root = tk.Tk()
-        root.withdraw()
-        mb.showwarning("LLDP Analyzer - Environment Check",
-                       "\n".join(msg_lines))
-        root.destroy()
-    except Exception:
-        # If tkinter isn't available, print to console
-        print("\n".join(msg_lines))
+        from tkinter import ttk, messagebox as mb
+        import webbrowser
+        import subprocess
+    except ImportError:
+        return True
 
-    return False
+    root = tk.Tk()
+    root.title("LLDP Analyzer - Runtime Check")
+    root.resizable(False, False)
+
+    frame = ttk.Frame(root, padding=20)
+    frame.pack(fill="both", expand=True)
+
+    ttk.Label(frame, text="Runtime Check", font=("", 14, "bold")).pack(anchor="w", pady=(0, 10))
+
+    # Results area
+    results_frame = ttk.Frame(frame)
+    results_frame.pack(fill="x", pady=(0, 10))
+    for r in status.results:
+        mark = "\u2714" if r.passed else "\u2718"
+        color = "green" if r.passed else "red"
+        line = tk.Label(results_frame, text=f"  {mark}  {r.label}" +
+                        (f"  ({r.detail})" if r.detail else ""),
+                        fg=color, font=("Courier", 11))
+        line.pack(anchor="w")
+
+    # Fix hints
+    if status.errors:
+        ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=8)
+        for r in status.errors:
+            if r.fix:
+                fix_text = r.fix.description
+                if r.fix.command:
+                    fix_text += f"\n    {r.fix.command}"
+                ttk.Label(frame, text=f"  {r.label}: {fix_text}",
+                          foreground="#666", wraplength=450, justify="left").pack(anchor="w", pady=2)
+
+    # Buttons
+    btn_frame = ttk.Frame(frame)
+    btn_frame.pack(fill="x", pady=(12, 0))
+
+    def _open_url(url):
+        webbrowser.open(url)
+
+    def _copy_cmd(cmd):
+        root.clipboard_clear()
+        root.clipboard_append(cmd)
+        mb.showinfo("Copied", f"Copied to clipboard:\n{cmd}", parent=root)
+
+    def _export():
+        import tempfile, os
+        path = os.path.join(tempfile.gettempdir(), "lldp_diagnostics.txt")
+        format_diagnostics(status)
+        with open(path, "w") as f:
+            f.write(format_diagnostics(status))
+        mb.showinfo("Exported", f"Diagnostics saved to:\n{path}", parent=root)
+
+    # Add fix buttons
+    col = 0
+    for r in status.errors:
+        if r.fix:
+            if r.fix.url:
+                ttk.Button(btn_frame, text=r.fix.label,
+                           command=lambda u=r.fix.url: _open_url(u)).grid(row=0, column=col, padx=3)
+                col += 1
+            elif r.fix.command:
+                ttk.Button(btn_frame, text=r.fix.label,
+                           command=lambda c=r.fix.command: _copy_cmd(c)).grid(row=0, column=col, padx=3)
+                col += 1
+
+    ttk.Button(btn_frame, text="Export Diagnostics", command=_export).grid(row=0, column=col, padx=3)
+    col += 1
+    ttk.Button(btn_frame, text="Continue", command=root.destroy).grid(row=0, column=col, padx=3)
+
+    root.mainloop()
+    return True
 
 
 def main():
