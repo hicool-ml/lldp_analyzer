@@ -134,11 +134,6 @@ def main() -> int:
         if file_path == exe_path:
             args.file = None
 
-    # Debug: show what arguments were received (helps diagnose double-click issues)
-    if not args.json_out:
-        print(f"[DEBUG] sys.argv = {sys.argv}", file=sys.stderr)
-        print(f"[DEBUG] args.file = {args.file!r}", file=sys.stderr)
-
     # Elevate BEFORE printing any banner — the elevated child will print it
     # exactly once.  If we are already root (e.g. `sudo python lldp.py`), skip.
     if _needs_admin(args) and not is_admin():
