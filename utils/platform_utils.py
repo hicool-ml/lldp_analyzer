@@ -67,6 +67,124 @@ def get_user_data_dir() -> str:
 # Packet Capture Support Detection
 # =========================================================================
 
+def check_runtime_environment() -> dict:
+    """Check all runtime dependencies for LLDP/CDP capture.
+
+    Returns a dict with keys:
+        scapy_installed : bool
+        scapy_version   : str (empty if not installed)
+        capture_ready   : bool
+        issues          : list[str]   (human-readable problems)
+        fix_hints       : list[str]   (platform-specific install commands)
+    """
+    issues: list[str] = []
+    fix_hints: list[str] = []
+
+    # --- Scapy ---
+    scapy_installed = False
+    scapy_version = ""
+    try:
+        import scapy
+        scapy_installed = True
+        scapy_version = getattr(scapy, "__version__", "")
+    except ImportError:
+        issues.append("scapy is not installed")
+        if is_macos():
+            fix_hints.append("Install scapy:  pip3 install scapy")
+        elif is_linux():
+            fix_hints.append("Install scapy:  sudo pip3 install scapy")
+        else:
+            fix_hints.append("Install scapy:  pip install scapy")
+
+    # --- Platform-specific capture checks ---
+    if is_macos():
+        # BPF device must exist and be readable
+        bpf_found = any(os.path.exists(f"/dev/bpf{i}") for i in range(16))
+        if not bpf_found:
+            issues.append("No /dev/bpf* devices found")
+            fix_hints.append("This should not happen on macOS. "
+                             "Try: sudo chmod o+r /dev/bpf*")
+
+        # Root check — capture requires root unless ChmodBPF is set up
+        if os.geteuid() != 0:
+            # Check if any bpf device is readable without root
+            bpf_readable = False
+            for i in range(16):
+                try:
+                    fd = os.open(f"/dev/bpf{i}", os.O_RDONLY)
+                    os.close(fd)
+                    bpf_readable = True
+                    break
+                except OSError:
+                    continue
+            if not bpf_readable:
+                issues.append("BPF devices require root access")
+                fix_hints.append("Run with sudo, or install ChmodBPF:  "
+                                 "brew install --cask chmodbpf")
+
+    elif is_linux():
+        # libpcap / tcpdump
+        try:
+            r = subprocess.run(["which", "tcpdump"],
+                               capture_output=True, timeout=5)
+            if r.returncode != 0:
+                issues.append("tcpdump/libpcap not found")
+                fix_hints.append("Install libpcap:  "
+                                 "sudo apt install tcpdump  (Debian/Ubuntu)\n"
+                                 "                sudo yum install tcpdump  (RHEL/CentOS)")
+        except Exception:
+            issues.append("Cannot check for tcpdump")
+        # Root or capture group
+        if os.geteuid() != 0:
+            try:
+                import grp
+                groups = [grp.getgrgid(g).gr_name for g in os.getgroups()]
+                if not any(g in groups for g in ("wireshark", "pcap", "packet")):
+                    issues.append("Not root and not in a capture group")
+                    fix_hints.append("Run with sudo, or add user to capture group:  "
+                                     "sudo usermod -a -G wireshark $USER")
+            except Exception:
+                pass
+
+    elif is_windows():
+        cap_ok, msg = _check_windows_packet_capture()
+        if not cap_ok:
+            issues.append(msg)
+            fix_hints.append("Install Npcap:  https://npcap.com/dist/  "
+                             "(enable 'WinPcap API-compatible Mode')")
+
+    capture_ready = len(issues) == 0
+    return {
+        "scapy_installed": scapy_installed,
+        "scapy_version": scapy_version,
+        "capture_ready": capture_ready,
+        "issues": issues,
+        "fix_hints": fix_hints,
+    }
+
+
+def print_environment_check() -> bool:
+    """Print a human-readable environment check and return True if ready."""
+    env = check_runtime_environment()
+    if env["capture_ready"]:
+        scapy_ver = f" {env['scapy_version']}" if env["scapy_version"] else ""
+        print(f"[OK] Environment ready (scapy{scapy_ver})")
+        return True
+
+    print("[!] Environment check found issues:")
+    for issue in env["issues"]:
+        print(f"    - {issue}")
+    if env["fix_hints"]:
+        print()
+        print("    To fix:")
+        for hint in env["fix_hints"]:
+            print(f"      {hint}")
+        print()
+    return False
+
+
+# =========================================================================
+
 def check_packet_capture_support() -> tuple[bool, str]:
     """Check if packet capture is available on this platform.
     

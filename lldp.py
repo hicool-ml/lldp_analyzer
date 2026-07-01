@@ -12,6 +12,7 @@ import sys
 from utils.elevator import is_admin
 from utils.elevator import run_elevated
 from utils.packet_capture import run_online_capture
+from utils.platform_utils import print_environment_check
 from utils.protocol_parser import parse_offline_file
 
 
@@ -87,6 +88,13 @@ def _interactive_menu(args: argparse.Namespace) -> int:
 def main() -> int:
     if sys.platform == "win32":
         os.system("chcp 65001 > nul")
+
+    # Environment check: verify scapy + capture deps before doing anything.
+    # On macOS/Linux this catches missing scapy or BPF permission issues.
+    try:
+        print_environment_check()
+    except Exception:
+        pass  # don't block execution if the check itself fails
 
     parser = argparse.ArgumentParser(description="LLDP/CDP 3.0 analyzer")
     parser.add_argument("file", nargs="?", help="Offline hex packet text file.")

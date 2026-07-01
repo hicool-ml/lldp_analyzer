@@ -186,6 +186,44 @@ def _check_packet_capture_support() -> tuple[bool, str]:
     return check_packet_capture_support()
 
 
+def _gui_environment_check():
+    """Check runtime deps and show a dialog if something is missing.
+
+    Returns True if the environment is ready for capture.
+    """
+    try:
+        from utils.platform_utils import check_runtime_environment
+    except ImportError:
+        return True  # don't block if the function doesn't exist
+
+    env = check_runtime_environment()
+    if env["capture_ready"]:
+        return True
+
+    # Build a helpful message
+    msg_lines = ["Environment check found issues:\n"]
+    for issue in env["issues"]:
+        msg_lines.append(f"  \u2022 {issue}")
+    if env["fix_hints"]:
+        msg_lines.append("\nTo fix:")
+        for hint in env["fix_hints"]:
+            msg_lines.append(f"  {hint}")
+
+    try:
+        import tkinter as tk
+        from tkinter import messagebox as mb
+        root = tk.Tk()
+        root.withdraw()
+        mb.showwarning("LLDP Analyzer - Environment Check",
+                       "\n".join(msg_lines))
+        root.destroy()
+    except Exception:
+        # If tkinter isn't available, print to console
+        print("\n".join(msg_lines))
+
+    return False
+
+
 def main():
     if "--json-out" in sys.argv:
         idx = sys.argv.index("--json-out")
@@ -198,6 +236,9 @@ def main():
         if op_args:
             sys.exit(_run_elevated_network_op(op_args))
         sys.exit(1)
+
+    # Environment check: verify scapy + capture dependencies before startup.
+    _gui_environment_check()
 
     # --- macOS startup elevation ---
     # CRITICAL: Use the SYSTEM Python (not the venv Python) to avoid macOS 14+
