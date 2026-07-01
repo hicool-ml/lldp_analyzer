@@ -50,6 +50,7 @@ def run_elevated(
     wait: bool = False,
     show_window: bool = False,
     timeout_ms: int | None = None,
+    cwd: str | None = None,
 ) -> Optional[int]:
     """Re-launch the current executable with elevated privileges.
 
@@ -67,6 +68,9 @@ def run_elevated(
         If False the elevated process window is hidden (SW_HIDE).
     timeout_ms : int | None
         Maximum wait time in milliseconds.  None means no timeout.
+    cwd : str | None
+        Working directory for the elevated child.  Defaults to the parent's cwd.
+        On macOS osascript this is applied via ``cd`` in the shell script.
     """
     exe = executable or sys.executable
 
@@ -75,9 +79,9 @@ def run_elevated(
         effective_timeout = timeout_ms if timeout_ms is not None else 120_000
         return _elevate_windows(exe, args, wait, show_window, effective_timeout)
     elif sys.platform == "darwin":
-        return _elevate_darwin(exe, args, wait, timeout_ms)
+        return _elevate_darwin(exe, args, wait, timeout_ms, cwd)
     else:
-        return _elevate_linux(exe, args, wait, timeout_ms)
+        return _elevate_linux(exe, args, wait, timeout_ms, cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +179,7 @@ def _elevate_darwin(
     args: list[str],
     wait: bool,
     timeout_ms: int | None,
+    cwd: str | None = None,
 ) -> Optional[int]:
     """Elevate on macOS.
 
@@ -218,15 +223,26 @@ def _elevate_darwin(
             subprocess.Popen(sudo_cmd)
             return None
     else:
+        import tempfile
+
         env_vars = []
         for key in ["HOME", "PATH", "TMPDIR", "USER"]:
             val = os.environ.get(key)
             if val:
                 env_vars.append(f"{key}={shlex.quote(val)}")
-        
+
         if env_vars:
             cmd_str = " ".join(env_vars) + " " + cmd_str
-        
+
+        # Run in the requested working directory (defaults to osascript's /).
+        if cwd:
+            cmd_str = f"cd {shlex.quote(cwd)} && {cmd_str}"
+
+        # Capture stderr to a temp file so GUI callers can read the real
+        # error when the elevated child fails (osascript swallows stdout/stderr).
+        err_log = os.path.join(tempfile.gettempdir(), "lldp_elevate_err.log")
+        cmd_str = f"{cmd_str} 2>{shlex.quote(err_log)}"
+
         escaped_cmd = cmd_str.replace('"', '\\"')
         osascript_cmd = [
             "osascript",
@@ -237,7 +253,16 @@ def _elevate_darwin(
         if wait:
             timeout_s = timeout_ms / 1000 if timeout_ms is not None else None
             try:
-                result = subprocess.run(osascript_cmd, timeout=timeout_s)
+                result = subprocess.run(osascript_cmd, timeout=timeout_s,
+                                         capture_output=True, text=True)
+                # osascript returns non-zero if the shell command failed;
+                # surface a hint in stderr so callers can debug.
+                if result.returncode != 0 and result.stderr:
+                    try:
+                        with open(err_log, "a") as f:
+                            f.write("\n[osascript] " + result.stderr)
+                    except OSError:
+                        pass
                 return result.returncode
             except subprocess.TimeoutExpired:
                 return 1
@@ -255,6 +280,7 @@ def _elevate_linux(
     args: list[str],
     wait: bool,
     timeout_ms: int | None,
+    cwd: str | None = None,
 ) -> Optional[int]:
     """Elevate on Linux using sudo in the current terminal."""
     import subprocess
@@ -267,6 +293,7 @@ def _elevate_linux(
         result = subprocess.run(
             sudo_cmd,
             timeout=timeout_s,
+            cwd=cwd,
         )
         return result.returncode
     else:
