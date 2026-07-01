@@ -108,6 +108,18 @@ def check_bpf() -> CheckResult:
 def check_root() -> CheckResult:
     if os.geteuid() == 0:
         return CheckResult(name="root", label="Administrator", passed=True, detail="root")
+
+    # In a frozen .app bundle the GUI elevates *per capture* via osascript
+    # (macOS auth dialog), so running as a normal user at startup is the
+    # expected, correct state — not a failure. Reporting it as FAIL would
+    # scare users into an unnecessary `sudo` relaunch.
+    if _is_frozen():
+        return CheckResult(
+            name="root", label="Administrator", passed=True,
+            detail=f"uid={os.geteuid()} (will elevate on capture)",
+        )
+
+    # Source-tree run: the developer is expected to launch with sudo.
     return CheckResult(
         name="root", label="Administrator", passed=False,
         detail=f"uid={os.geteuid()} (not root)",
