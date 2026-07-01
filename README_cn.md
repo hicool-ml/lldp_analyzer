@@ -4,6 +4,54 @@
 
 跨平台支持：**Windows**（完整测试）和 **macOS**（Apple Silicon + Intel）。
 
+## 预编译二进制下载
+
+从 [Releases 页面](https://github.com/hicool-ml/lldp_analyzer/releases) 下载最新版本。
+
+### Windows
+
+1. 下载 `LLDP_CLI_Windows.zip` 或 `LLDP_GUI_Windows.zip`
+2. 解压 ZIP
+3. **CLI**：运行 `LLDP_CLI.exe`（在线抓包请右键 → 以管理员身份运行）
+4. **GUI**：运行 `LLDP_GUI.exe`（自动通过 UAC 提权）
+
+### Linux
+
+1. 下载 `LLDP_CLI_Linux.zip` 或 `LLDP_GUI_Linux.zip`
+2. 解压 ZIP
+3. 运行 `./LLDP_CLI` 或 `./LLDP_GUI`
+4. 在线抓包需要 root：`sudo ./LLDP_CLI`
+
+### macOS（Apple Silicon）
+
+> **macOS GUI 用户**：由于 Apple 的公证要求，GUI 应用为临时签名（ad-hoc signed）。首次启动前需要移除隔离属性。CLI 无需任何额外步骤。
+
+**CLI（macOS 推荐）：**
+
+```bash
+# 下载并解压
+unzip LLDP_CLI_macOS.zip
+# 运行（在线抓包自动通过 sudo 提权）
+./LLDP_CLI/LLDP_CLI
+# 或离线解析：
+./LLDP_CLI/LLDP_CLI samples/ruijie_S2910.txt
+```
+
+**GUI：**
+
+```bash
+# 下载并解压
+unzip LLDP_GUI_macOS.zip
+
+# 移除隔离属性（仅需一次）
+sudo xattr -rd com.apple.quarantine LLDP_GUI.app
+
+# 启动
+open LLDP_GUI.app
+```
+
+也可以右键 `LLDP_GUI.app` → **打开** → 在弹窗中点击 **打开**。仅需操作一次。
+
 ## 快速开始
 
 ### Windows
@@ -78,6 +126,22 @@ python lldp_gui.py <离线文件>   # 启动时加载离线文件
 2. **捕获引擎**：GUI 复用 `lldp.py` 作为捕获引擎 — 通过提权启动 `lldp.py --json-out`，利用接口 down/up 触发交换机重发 LLDP+CDP 报文。
 3. **Scapy 可用性**：捕获子进程使用系统 Python，通过 `PYTHONPATH` 指向虚拟环境的 site-packages，自动找到 scapy。
 4. **自适应刷新**：捕获或网络操作后自动进行带进度点的刷新。
+
+## 运行环境检查
+
+CLI 和 GUI 启动时都会执行一次 **能力检查（pre-flight check）**。如果缺少必要组件或进程权限不足，GUI 会弹出对话框、CLI 会打印状态行，清楚说明问题并提供一键修复：
+
+- **Windows**：检测 Npcap 与 WinPcap、管理员权限、原始套接字能力。若未安装 Npcap，按钮直接打开官方下载页。
+- **Linux**：检测 `libpcap`、root / 抓包组归属、`ip` / `ethtool` 工具。显示精确的 `apt`/`yum` 安装命令并提供复制按钮（绝不自动执行）。
+- **macOS**：检测 Scapy、`libpcap`（通过 `ctypes.util.find_library`）、BPF 设备访问权限、root。缺 libpcap 时打开 Homebrew；权限不足时给出针对**打包后的 app** 的正确 `sudo` 重启命令（而非分发中并不存在的源码文件）。
+
+### 诊断导出
+
+在运行环境检查对话框（或 **Help** 菜单）中选择 **Export Diagnostics**，即可导出 `lldp_diagnostics.txt` 报告 —— 平台、架构、Python 版本、抓包后端、每项检查的 PASS/FAIL。提 Issue 时附上此文件，无需反复沟通即可定位问题。
+
+### 抓包后端
+
+分析器与后端解耦：上层代码依赖的是能力（抓包 / 发送二层 / 环回 / 监听模式），而非具体产品名。Windows 下自动识别 **Npcap**（首选，支持环回）与已停止维护的 **WinPcap**，仅在 WinPcap 环境下回退到软件过滤。这样不同后端下行为一致，也兼容未来基于 libpcap 的新实现。
 
 ## 环境搭建
 
@@ -251,6 +315,14 @@ lldp_gui.py                GUI 入口 — tkinter 应用、macOS 启动提权
 lldp_helper.py             macOS 特权助手 — networksetup、tcpdump、ifconfig
 vendor_dispatcher.py       OUI/指纹分发，处理 LLDP TLV 127
 
+runtime/                  运行环境检查模块
+  checker.py              统一入口：分发到各平台模块
+  models.py               CheckResult / FixAction / RuntimeStatus 数据类
+  windows.py              Windows 检查（Npcap/WinPcap、管理员、原始套接字）
+  macos.py                macOS 检查（Scapy、libpcap、BPF 设备、root）
+  linux.py                Linux 检查（libpcap、抓包组、ip/ethtool）
+
+
 decoders/
   cisco_decoder.py         Cisco OUI 00:00:0C / 00:0C:05 私有 TLV
   h3c_decoder.py           H3C / Comware OUI 00:12:BB 私有 TLV
@@ -291,6 +363,7 @@ i18n/
 
 utils/
   adapter_scanner.py       统一网卡枚举
+  capture_backend.py      Npcap / WinPcap 检测与能力探测
   capture_engine.py        持久化捕获引擎
   elevator.py              统一提权：run_elevated() + is_admin()
   hexdump.py               纯字节展示

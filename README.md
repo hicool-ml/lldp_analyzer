@@ -128,6 +128,22 @@ Three tabs:
 3. **Scapy availability**: The capture subprocess uses the system Python with `PYTHONPATH` set to the virtual environment's site-packages, so scapy is found automatically.
 4. **Adaptive refresh**: After capture or network operations, the UI refreshes with progress dots.
 
+## Runtime Environment Check
+
+Both the CLI and GUI run a **pre-flight capability check** on startup. If a required component is missing or the process lacks privileges, a dialog (GUI) or status lines (CLI) explain exactly what is wrong and offer a one-click fix:
+
+- **Windows**: detects Npcap vs WinPcap, administrator rights, and raw-socket capability. If Npcap is missing, a button opens the official download page.
+- **Linux**: checks for `libpcap`, root / capture-group membership, and the `ip` / `ethtool` tools. Shows the exact `apt`/`yum` install command with a copy button (never auto-runs).
+- **macOS**: checks Scapy, `libpcap` (via `ctypes.util.find_library`), BPF device access, and root. Missing libpcap opens Homebrew; missing privileges offer the correct `sudo` relaunch command for the **bundled app** (not a source file that does not exist in the distribution).
+
+### Diagnostics Export
+
+From the runtime-check dialog (or the **Help** menu) choose **Export Diagnostics** to write a `lldp_diagnostics.txt` report — platform, architecture, Python version, capture backend, and PASS/FAIL of every check. Attach this file to an Issue so problems can be diagnosed without a long Q&A.
+
+### Capture Backend
+
+The analyzer is backend-agnostic: the upper layers depend on capabilities (capture / send-L2 / loopback / monitor), not on a specific product name. On Windows it auto-detects **Npcap** (preferred, supports loopback) vs the deprecated **WinPcap**, and falls back to software filtering when only WinPcap is present. This keeps behavior consistent across backends and is forward-compatible with future libpcap-based implementations.
+
 ## Setup
 
 ### Windows
@@ -300,6 +316,14 @@ lldp_gui.py                GUI entry — tkinter application, macOS startup elev
 lldp_helper.py             macOS privileged helper — networksetup, tcpdump, ifconfig
 vendor_dispatcher.py       OUI/fingerprint dispatch for LLDP TLV 127
 
+runtime/                  Pre-flight capability check module
+  checker.py              Unified entry: dispatches to the platform module
+  models.py               CheckResult / FixAction / RuntimeStatus dataclasses
+  windows.py              Windows checks (Npcap/WinPcap, admin, raw socket)
+  macos.py                macOS checks (Scapy, libpcap, BPF device, root)
+  linux.py                Linux checks (libpcap, capture group, ip/ethtool)
+
+
 decoders/
   cisco_decoder.py         Cisco OUI 00:00:0C / 00:0C:05 private TLVs
   h3c_decoder.py           H3C / Comware OUI 00:12:BB private TLVs
@@ -340,6 +364,7 @@ i18n/
 
 utils/
   adapter_scanner.py       Unified adapter enumeration (OS-level + keyword)
+  capture_backend.py      Npcap / WinPcap detection and capability probe
   capture_engine.py        Persistent capture engine (always-on monitoring)
   elevator.py              Unified elevation: run_elevated() + is_admin()
   hexdump.py               Pure byte-array display
