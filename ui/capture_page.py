@@ -248,11 +248,12 @@ class CapturePage:
                 cmd_args.append("--thorough")
             cwd = os.path.dirname(exe)
         else:
-            # Now uses SYSTEM Python (via the fixed startup elevation) so we
-            # add PYTHONPATH to locate scapy in the venv's site-packages.
+            # Non-frozen: use lldp_gui.py itself with --json-out (it has a
+            # headless capture mode). This avoids path issues when lldp.py
+            # is not in the same directory.
             exe = sys.executable
-            lldp_script = os.path.join(project_root, "lldp.py")
-            cmd_args = [lldp_script, "--json-out", json_path]
+            gui_script = os.path.abspath(sys.argv[0])
+            cmd_args = [gui_script, "--json-out", json_path]
             if iface_name:
                 cmd_args.extend(["--interface", iface_name])
             if is_darwin():
