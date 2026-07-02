@@ -269,6 +269,18 @@ class CapturePage:
             self.progress.stop()
             self.progress.config(mode="determinate")
 
+            # Preserve the full capture log (written by the headless child
+            # to json_path + ".log") on the Desktop so the user can find it.
+            import shutil as _shutil
+            cap_log_src = json_path + ".log"
+            desktop_dir = os.path.expanduser("~/Desktop")
+            cap_log_dst = os.path.join(desktop_dir, "lldp_capture.log")
+            try:
+                if os.path.exists(cap_log_src):
+                    _shutil.copy2(cap_log_src, cap_log_dst)
+            except Exception:
+                cap_log_dst = ""
+
             if rc == 0:
                 if os.path.exists(json_path):
                     try:
@@ -293,27 +305,25 @@ class CapturePage:
                             self.log(f"Capture finished — {len(results)} neighbors found.")
                         else:
                             self.log("Capture finished — 0 neighbors found.")
+                            if cap_log_dst:
+                                self.log("Full capture log: " + cap_log_dst)
                     except Exception as e:
                         self.log(f"Error reading results: {e}")
                 else:
                     self.log("Capture finished — 0 neighbors found.")
             else:
-                # Surface the elevated child's stderr if available
-                import os as _os
-                err_path = _os.path.join(_os.path.dirname(json_path), "lldp_elevate_err.log")
-                if not _os.path.exists(err_path):
-                    err_path = "/tmp/lldp_elevate_err.log"
-                err_msg = ""
-                try:
-                    if _os.path.exists(err_path):
-                        with open(err_path, "r") as ef:
-                            err_msg = ef.read().strip()[-500:]
-                except Exception:
-                    pass
-                if err_msg:
-                    self.log(f"Capture failed (exit {rc}): {err_msg}")
+                # Show the capture log so failures are diagnosable.
+                if cap_log_dst and os.path.exists(cap_log_dst):
+                    try:
+                        with open(cap_log_dst, "r") as lf:
+                            tail = lf.read().strip()[-800:]
+                    except Exception:
+                        tail = ""
+                    self.log("Capture failed (exit %d). Log: %s" % (rc, cap_log_dst))
+                    if tail:
+                        self.log(tail)
                 else:
-                    self.log(f"Capture failed with exit code {rc}")
+                    self.log("Capture failed with exit code %d" % rc)
 
             self.status_var.set(_("status_idle"))
 
