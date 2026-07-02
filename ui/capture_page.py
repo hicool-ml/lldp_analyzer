@@ -298,7 +298,22 @@ class CapturePage:
                 else:
                     self.log("Capture finished — 0 neighbors found.")
             else:
-                self.log(f"Capture failed with exit code {rc}")
+                # Surface the elevated child's stderr if available
+                import os as _os
+                err_path = _os.path.join(_os.path.dirname(json_path), "lldp_elevate_err.log")
+                if not _os.path.exists(err_path):
+                    err_path = "/tmp/lldp_elevate_err.log"
+                err_msg = ""
+                try:
+                    if _os.path.exists(err_path):
+                        with open(err_path, "r") as ef:
+                            err_msg = ef.read().strip()[-500:]
+                except Exception:
+                    pass
+                if err_msg:
+                    self.log(f"Capture failed (exit {rc}): {err_msg}")
+                else:
+                    self.log(f"Capture failed with exit code {rc}")
 
             self.status_var.set(_("status_idle"))
 
@@ -348,7 +363,7 @@ class CapturePage:
             import threading
 
             def _run_elevated():
-                rc = run_elevated(cmd_args, executable=exe, wait=True, show_window=True)
+                rc = run_elevated(cmd_args, executable=exe, wait=True, show_window=True, cwd=cwd)
                 self.frame.after(0, lambda: _on_capture_complete(rc if rc is not None else 0))
 
             t = threading.Thread(target=_run_elevated, daemon=True)
