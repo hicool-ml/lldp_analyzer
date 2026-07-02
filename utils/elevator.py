@@ -231,6 +231,15 @@ def _elevate_darwin(
             if val:
                 env_vars.append(f"{key}={shlex.quote(val)}")
 
+        # osascript's `do shell script` runs with a minimal environment.
+        # Ensure PATH includes sbin so ifconfig/networksetup/system_profiler
+        # are found by scapy and our own interface enumeration code.
+        path_val = os.environ.get("PATH", "/usr/bin:/bin")
+        for extra in ["/usr/sbin", "/sbin", "/opt/homebrew/bin", "/usr/local/bin"]:
+            if extra not in path_val:
+                path_val = path_val + ":" + extra
+        env_vars.append(f"PATH={shlex.quote(path_val)}")
+
         if env_vars:
             cmd_str = " ".join(env_vars) + " " + cmd_str
 
